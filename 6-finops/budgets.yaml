@@ -1,0 +1,32 @@
+# ==============================================================================
+# FinOps Budget Configuration
+# ==============================================================================
+# Edit this file to change budget amounts, thresholds, or scopes without
+# modifying Terraform module code. Run terraform apply after changes.
+# ==============================================================================
+
+budgets:
+  monthly_overall:
+    display_name: "Monthly Overall Budget"
+    currency_code: "INR"
+    units: "50000"
+    credit_types_treatment: "EXCLUDE_ALL_CREDITS"
+    enable_project_level_recipients: true
+    budget_month: "2026-08"
+    budget_project: "projects/finops-foundation-test"
+    threshold_rules:
+      - threshold_percent: 0.5
+      - threshold_percent: 0.8
+      - threshold_percent: 1.0
+
+budget_control_scopes:
+  dev_projects:
+    display_name: "Dev Projects Budget"
+    currency_code: "INR"
+    units: "20000"
+    filter_projects:
+      - "projects/finops-foundation-test"
+    budget_month: "2026-08"
+    threshold_rules:
+      - threshold_percent: 0.5
+      - threshold_percent: 1.0

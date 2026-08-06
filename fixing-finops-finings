@@ -1,0 +1,841 @@
+
+​# FinOps Modules — Remediation Plan
+
+**Scope reviewed:** `modules/finops-alerts`, `modules/finops-budget-controls`,
+`modules/finops-budgets`, `modules/finops-dataset`, `modules/finops-views`,
+`modules/project`, and the root orchestration folder `test-finops-dataset/`
+(incl. its `function-source/` Cloud Function code), all on branch
+`feature-agents-md`. Other stage directories in this repo (`0-bootstrap`,
+`1-org`, `2-folders`, `3-host-projects`, `4-networks-hub-and-spoke`,
+`5-projects`) follow a different structure and are intentionally **out of
+scope** — every finding and fix below only assumes `modules/` and
+`test-finops-dataset/` exist.
+
+Every finding is also cross-checked against `cloud-foundation-fabric`
+(CFF) — the reference implementation this repo's own `agents.md` is modeled
+on — by reading CFF's actual module source, not by assumption.
+
+**How to read this doc:** every finding is self-contained. Each has exactly
+five parts:
+- **What we're fixing** — the concrete problem, with file/line references.
+- **Why we need this fix** — the concrete risk or cost of leaving it as-is.
+- **How to fix** — exact steps.
+- **AGENTS.md reference** — the quoted rule from `agents.md` /
+  `BEST_PRACTICES.md` this finding is grounded in (a few findings are
+  general Terraform/GCP hygiene with no direct line in those files — labeled
+  as such).
+- **Won't break / scalable** — confirmation the fix is safe to apply and
+  how it holds up as the repo grows.
+
+**Suggested fix order** (later items depend on earlier ones):
+
+1. **F4** (interface mismatch) — small, isolated, do first.
+2. **F2** (merge duplicate budget modules) — before F3.
+3. **F3** (move view creation into `finops-views`) — depends on F2.
+4. **F1** (move modules out of `modules/`) — mechanical, do once structural
+   changes have settled.
+5. **F5** (add `examples/basic/`) — after F1–F3, so examples reflect the
+   final module shape.
+6. **F7** (adopt CFF's two IAM patterns) and **F13** (consolidate API
+   enablement into `modules/project`) — do these together, before F8/F9,
+   since F8's Cloud Function module and F9's Secret Manager access both
+   depend on F7/F13's new `modules/project` `iam` variable and the new
+   `finops-function` module.
+7. **F8** (extract a dedicated `finops-function` module) — depends on F7.
+8. **F9** (Secret Manager instead of plaintext env vars) — do inside the
+   new module from F8.
+9. **F6** (rename/relocate `test-finops-dataset`) — independent, any time
+   after F1–F3.
+10. **F10** (function code robustness), **F11** (encoding cleanup), **F12**
+    (schema verification) — trivial, do anytime.
+11. **F14** (validation) — always last, after every other fix.
+
+---
+
+## F1 — Modules nested under `modules/` instead of top-level directories
+
+**What we're fixing:** all five finops modules live at
+`modules/finops-alerts/`, `modules/finops-budgets/`, etc. `agents.md`
+requires each module to be its own top-level directory at the repo root.
+
+**Why we need this fix:** this is a direct, explicit contradiction of the
+repo's own contributor instructions. Anyone following `agents.md` step 3
+before creating a new module will look for a top-level directory, not find
+one, and either duplicate work or create the next module in the wrong
+place too — the inconsistency compounds over time.
+
+**How to fix:**
+1. `git mv modules/finops-alerts finops-alerts` (repeat for the other 4).
+2. Update every `source = "../modules/finops-*"` reference — in
+   `test-finops-dataset/main.tf`, and in each module's own README usage
+   example — to `source = "../finops-*"` (one level up instead of two).
+3. Update any CI/lint config (`.tflint.hcl`, path-based test globs) that
+   assumes a `modules/` prefix.
+4. Run `terraform init` in `test-finops-dataset/` afterward — module source
+   path changes require re-initializing (see F14).
+
+**AGENTS.md reference:**
+> "Check the repo root for an existing module directory covering the same or
+> adjacent resource before creating a new one (each module is its own
+> top-level directory, e.g. `network/`, `iam/`, `logging/` — not nested
+> under a `modules/` folder)."
+— `agents.md`, "Before creating or editing a module", item 3. Also restated
+in the "Creating a new module" checklist: *"as its own top-level directory
+at the repo root."*
+
+**Won't break / scalable:** this is a path rename, not a logic change — no
+resource addresses change, so `terraform state` is untouched (state keys
+are based on resource addresses inside the module, not the module's
+filesystem location, as long as the module block name in the calling root
+stays the same). Safe to do as a pure `git mv` + source string update,
+verified with `terraform plan` showing zero diffs afterward.
+
+---
+
+## F2 — Duplicate budget-enforcement logic (`finops-budgets` vs. `finops-budget-controls`)
+
+**What we're fixing:** both modules independently implement a
+`google_billing_budget` resource with the same shape: `amount` block,
+`dynamic "threshold_rules"`, `all_updates_rule`, `budget_filter`. The only
+real difference is `finops-budget-controls` adds a `filter_projects`/scope
+concept and a billing-viewer IAM grant.
+
+**Why we need this fix:** two modules doing the same job means every future
+change to budget behavior (a new provider field, a bug fix, a new
+threshold type) has to be made twice, and it's easy to forget one — they
+will drift apart silently. It also directly violates the "extend, don't
+duplicate" guidance before creating a new module.
+
+**How to fix:**
+1. Pick `finops-budgets` as the surviving module (it's the more complete
+   one, already wired to the alerts + dataset modules).
+2. Add the scoping capability from `finops-budget-controls` into
+   `finops-budgets`'s `budgets` object variable — e.g. add optional
+   `filter_projects`, `filter_labels` (already partially present) and the
+   `iam_viewers` variable + `google_billing_account_iam_member.viewer`
+   resource from `finops-budget-controls`.
+3. Update `test-finops-dataset/main.tf`: replace the separate
+   `module "finops_budget_controls"` block by merging its `scopes` config
+   into the `budgets` map passed to `module.finops_budgets`, and merge
+   `budgets.yaml`'s `budget_control_scopes` key into `budgets`.
+4. Delete `finops-budget-controls` entirely once callers are migrated.
+5. Update `finops-budgets/README.md` to document the new scoping fields.
+
+**AGENTS.md reference:**
+> "Check the repo root for an existing module directory covering the same or
+> adjacent resource before creating a new one... Extend an existing module
+> if the resource fits its stated responsibility; create a new one if it
+> doesn't."
+— `agents.md`, item 3. Also `BEST_PRACTICES.md`: *"One module = one clear
+responsibility. If a module is doing IAM, networking, and logging all at
+once, split it"* — the inverse problem here (splitting one responsibility
+across two modules) is the same anti-pattern in reverse.
+
+**Won't break / scalable:** because both modules use `for_each` over a map
+keyed by a caller-chosen string (`var.budgets` / `var.scopes`), merging
+them means the surviving module's state simply gains more map keys —
+existing `google_billing_budget.budget["monthly_overall"]` resources are
+untouched as long as you don't rename that key during the merge.
+Migrating `finops-budget-controls`'s existing budgets requires either a
+`terraform state mv`, or a plan/apply cycle since these are still
+early-stage modules with no real deployed budgets yet. Scales cleanly: one
+map-driven module now covers both "one overall budget" and "N scoped
+budgets" use cases without new code paths.
+
+---
+
+## F3 — `finops-budgets` creates its own BigQuery view instead of using `finops-views`
+
+**What we're fixing:** `finops-budgets/main.tf` has a
+`google_bigquery_table.finops_budgets_view` resource, fed by a
+`budget_view_data` variable that duplicates data already present in the
+`budgets` variable. `finops-views` is the module explicitly designed to own
+*all* BigQuery view creation (its own header comment calls it a "views
+factory").
+
+**Confirmed in practice:** `test-finops-dataset/budgets.yaml` defines the
+same budget amount twice — once under `budgets:` (real enforcement) and
+again under `budget_view_data:` (`month`/`project_id`/`currency`/
+`budget_amount`, re-typed by hand per month). Nothing keeps these in sync.
+`finops-budgets` also builds the view's SQL using a hand-rolled
+`%{for}...%{endfor}` string-template loop inside a heredoc — a materially
+different, harder to read/test style than `finops-views`'s clean
+`locals.views` map + `for_each` factory pattern.
+
+**Why we need this fix:**
+- **Drift risk:** editing a budget amount without also updating
+  `budget_view_data` silently produces a stale dashboard.
+- **Responsibility bleed:** `finops-budgets` is doing budget *enforcement*
+  and BI *reporting* — two different jobs in one module.
+- **Inconsistent code style:** two different ways of building a BigQuery
+  view exist side by side in the same repo for no reason.
+
+**How to fix:**
+1. Remove `google_bigquery_table.finops_budgets_view` and the
+   `budget_view_data` variable from `finops-budgets`. Keep `finops-budgets`
+   outputting only budget data (`budget_ids`, `budget_names`) — add
+   `budget_amounts`/`budget_currency` outputs (map keyed the same as
+   `budgets`) if the view needs them.
+2. Add a `finops_budgets` entry to `finops-views`'s `local.views` map,
+   built the same way as the other views (a plain `<<-EOT` query string),
+   parameterized by a new `finops-views` input variable (e.g.
+   `budget_targets`) that the caller populates directly from
+   `module.finops_budgets`'s outputs — not from a hand-typed YAML list.
+3. In `test-finops-dataset/main.tf`, pass
+   `budget_targets = module.finops_budgets.budget_amounts` into
+   `module.finops_views` instead of `local.budget_config.budget_view_data`.
+4. Remove the `budget_view_data:` key from `budgets.yaml` entirely.
+5. Move the existing `monthly_kpi_summary` resource (currently hand-built
+   at root in `test-finops-dataset/main.tf`) into `finops-views`'s
+   `local.views` map too, so **all** reporting views live in one factory.
+
+**AGENTS.md reference:**
+> "One module = one clear responsibility." /
+> "Identify the module's single responsibility before writing any code
+> (e.g. 'creates a Shared VPC host project and subnets' — not 'networking
+> and IAM and logging')."
+— `BEST_PRACTICES.md` and `agents.md` item 4. Also
+`BEST_PRACTICES.md`'s "Simplicity over cleverness" section: *"Prefer
+simple, explicit code over compact, clever code"* — supporting the same
+flat `locals` map pattern over the templated-SQL-loop approach.
+
+**Won't break / scalable:** this changes `finops-budgets`'s output shape
+(removes `finops_budgets_view_id`, adds new budget-data outputs) and
+`finops-views`'s input shape (new `budget_targets` variable) — both are
+**breaking interface changes**, so bump each module's version/tag and
+update every caller in the same PR. Once done, adding a new KPI-style view
+in future just means adding one more entry to `finops-views`'s
+`local.views` map — no new module, no new hand-rolled SQL-loop pattern.
+
+---
+
+## F4 — Type mismatch: `notification_channel_ids` output vs. input
+
+**What we're fixing:** `finops-alerts` outputs `notification_channel_ids`
+as a **map** (`email → channel id`). Both `finops-budgets` and
+`finops-budget-controls` declare their `notification_channel_ids` **input**
+as `list(string)`. There is no direct wiring — every caller must write
+`values(module.finops_alerts.notification_channel_ids)`, which is exactly
+what `test-finops-dataset/main.tf` does today, twice — undocumented on the
+variable itself.
+
+**Why we need this fix:** an interface mismatch like this is exactly what
+`agents.md`'s outputs guidance exists to prevent — outputs should be
+directly consumable by downstream modules without a caller-side type
+conversion. It's also fragile: `values()` on a map returns values ordered
+by *sorted key*, so any downstream assumption of list-index-to-email
+correspondence is wrong and silent.
+
+**How to fix (pick one):**
+- **Recommended:** change the `notification_channel_ids` **input**
+  variable on `finops-budgets`/`finops-budget-controls` to `map(string)` to
+  match what `finops-alerts` already outputs. Use
+  `values(var.notification_channel_ids)` **inside** the module instead of
+  pushing the conversion onto every caller.
+- **Alternative:** change `finops-alerts`'s output to a plain
+  `list(string)` if no consumer actually needs the email → id mapping.
+- Either way: update `test-finops-dataset/main.tf` to remove the manual
+  `values(...)` wrapper, and update both modules' READMEs.
+
+**AGENTS.md reference:**
+> "Output the values downstream modules or stages will actually need (IDs,
+> self-links, emails) — not the entire resource object."
+— `BEST_PRACTICES.md`, "Variables and outputs".
+
+**Won't break / scalable:** breaking variable-type change on two modules —
+bump their version tags. Cheapest point in the project's life to fix it
+(no production budgets deployed yet). Every future module needing
+notification channels can then consume `finops-alerts`'s output directly
+with zero glue code.
+
+---
+
+## F5 — No `examples/basic/` in any of the five modules
+
+**What we're fixing:** every module's `agents.md` checklist requires an
+`examples/basic/` directory — "a small, runnable root module that calls
+this module — not just a code block in the README." None of the five
+modules have one; each only has a "Usage" code fence in its `README.md`.
+
+**Why we need this fix:** a code block in a README isn't validated by
+anything — it can silently go stale and nobody notices until a real caller
+copies it and it fails. A runnable `examples/basic/` is what
+`terraform validate`/`plan` (F14) can actually be run against.
+
+**How to fix:**
+1. For each module (after F1 renames it to top-level), add
+   `<module>/examples/basic/main.tf` + `variables.tf` (or
+   `.tfvars.example`) calling the module with minimum required inputs and
+   example values, mirroring the existing README "Usage" block.
+2. Add a short `examples/basic/README.md` (one line: what it demonstrates).
+3. `terraform init && terraform validate` inside each `examples/basic/` as
+   part of F14.
+
+**AGENTS.md reference:**
+> "An `examples/basic/` directory with a small, runnable root module that
+> calls this module — not just a code block in the README."
+— `agents.md`, "Creating a new module — checklist".
+
+**Won't break / scalable:** purely additive (new files only) — zero risk to
+existing modules or state. `test-finops-dataset/` (F6) is a separate,
+full-stack integration reference and can coexist with per-module
+`examples/basic/` — the two serve different purposes and neither replaces
+the other.
+
+---
+
+## F6 — `test-finops-dataset/` is mis-scoped and misleadingly named
+
+**What we're fixing:** `test-finops-dataset/` is not a small example — its
+own README calls it the "FinOps Integration & Validation Root Module." It
+orchestrates all 5 finops modules, grants IAM roles to the Terraform SA,
+enables 8 GCP APIs, and deploys a full Cloud Function (Gmail/Teams alert
+processor) with a GCS bucket for its source zip. Its name implies it only
+exercises `finops-dataset`.
+
+**Why we need this fix:** anyone browsing the repo root would reasonably
+assume `test-finops-dataset` is a lightweight test/example for the
+`finops-dataset` module alone and be surprised to find it's actually a
+production-shaped deployment root that provisions a Cloud Function and
+grants broad IAM roles. That mismatch between name and actual blast-radius
+is a real operational risk — someone could `terraform destroy`/`apply` it
+thinking it's disposable.
+
+**How to fix:** decide which of these two things it actually is, and
+name/place it accordingly:
+- **If it's a real, reusable deployment stage:** move it to a numbered
+  stage directory consistent with the rest of the repo (e.g. `5-finops/`
+  or `6-finops/`), keeping its existing README.
+- **If it's meant to be an example:** strip it down to just the 5-module
+  wiring (drop the Cloud Function, GCS bucket, and project/billing IAM
+  grants), and rename to `examples/full-stack/` to distinguish it from
+  the per-module `examples/basic/` added in F5.
+- **Either way, it can coexist with F5's per-module `examples/basic/`
+  directories** — `examples/basic/` shows each module in isolation with
+  minimal inputs; `test-finops-dataset` (renamed) demonstrates all 5
+  modules wired together end-to-end plus the Cloud Function integration.
+  You don't need to choose one over the other, only fix its name/placement
+  so its actual scope is clear.
+
+**AGENTS.md reference:** no direct line item covers root-orchestration
+naming specifically, but it follows from `BEST_PRACTICES.md`'s "Naming"
+section: *"Resource and module block names must be descriptive and state
+what the resource is"* — the same logic applies to directory names.
+
+**Won't break / scalable:** a rename/move (`git mv`) — update the GCS
+backend `prefix` in `versions.tf` if you rename the directory (Terraform
+won't auto-migrate state on a folder rename). Do this after F1–F3 land so
+you're not renaming twice.
+
+---
+
+## F7 — IAM is implemented as loose, ad-hoc grants instead of following CFF's two IAM patterns
+
+**What we're fixing:** every IAM grant in this FinOps stage today is either
+a loose resource in `test-finops-dataset/main.tf` (`google_project_iam_member`,
+`google_billing_account_iam_member`) or missing entirely from a module that
+should own it. There is no consistent, per-module IAM interface, and the
+roles granted are broader than necessary (`roles/bigquery.admin`,
+`roles/pubsub.admin`, `roles/monitoring.editor`, `roles/storage.admin`,
+`roles/cloudfunctions.admin`, `roles/billing.admin`).
+
+**Why we need this fix:** without a consistent pattern, IAM grants get
+bolted onto whatever file is closest at the time, which is exactly how
+this stage ended up with full-project admin roles self-granted by the same
+Terraform run that then uses them. If this SA or its credentials are ever
+compromised, the blast radius is "admin over BigQuery, Pub/Sub, Monitoring,
+Storage, and Cloud Functions across the whole project," not "manage FinOps
+budgets and views."
+
+**CFF's two IAM patterns** (verified directly against CFF's own module
+source, not assumed):
+
+**Pattern A — "a resource that others need access to"**
+(`project`, `bigquery-dataset`, `pubsub`): each has its own `iam.tf` +
+`variables-iam.tf` exposing the same trio:
+- `iam` = `map(list(string))` (role → members) → implemented via the
+  **authoritative** `_iam_binding` resource (CFF treats this variable as
+  "you now own this role's whole list").
+- `iam_bindings` → authoritative, keyed, supports conditions.
+- `iam_bindings_additive` → **additive** `_iam_member`, one grant at a
+  time, safe to use alongside other automation/teams.
+
+**Pattern B — "a resource that itself needs to act as an identity"**
+(`cloud-function-v2`): no `iam.tf` at all. Instead `serviceaccount.tf` +
+`variables-serviceaccount.tf` — the module creates its **own** runtime SA
+and grants *that SA* roles via `service_account_config.roles` (default
+`["roles/logging.logWriter","roles/monitoring.metricWriter"]`) →
+`google_project_iam_member`. The direction is inverted: not "who can
+access this function," but "what can this function's own SA do."
+
+CFF does not use one pattern everywhere — Pattern A for anything other
+principals need to reach into, Pattern B for anything that is itself an
+identity performing actions.
+
+**Mapping onto this repo's modules:**
+
+| CFF module | finops equivalent | Pattern | Current state | Fix |
+|---|---|---|---|---|
+| `bigquery-dataset` | `finops-dataset` | A | Has `variable "iam"` + `google_bigquery_dataset_iam_binding` (main.tf:40) | ✅ Already correct — matches CFF exactly, since `iam` is meant to authoritatively own that role's members, satisfying `agents.md`'s "unless the module is meant to fully own the whole binding list" carve-out. Optional: add `iam_bindings_additive` for callers who want one grant without owning the whole list. |
+| `pubsub` | `finops-alerts` (Pub/Sub + notification channels) | A | No `iam.tf`, no IAM variable at all | Real gap — add the same `iam`/`iam_bindings_additive` pair, scoped to the topic/notification channel, mirroring CFF's `pubsub/iam.tf`. |
+| `project` | `modules/project` | A | `activate_apis` only, no `iam.tf` | Real gap — add `variable "iam" { type = map(list(string)) }` + a `project-iam.tf` with `google_project_iam_member`. |
+| `cloud-function-v2` | Cloud Function loose in `test-finops-dataset/main.tf` | B | No dedicated module, no owned runtime SA, secrets as plaintext env vars | See **F8** — extract into a `finops-function` module following Pattern B. |
+| — (no CFF equivalent; budgets have no per-resource IAM surface) | `finops-budgets`/`finops-budget-controls` | A (billing-account scoped) | Already additive via `google_billing_account_iam_member` + `iam_viewers` | ✅ Already correct — GCP has no per-budget IAM resource, so billing-account-level additive grants is the right and only option, matching CFF (no per-budget `iam.tf` exists there either). |
+
+**One deliberate, documented difference from CFF for `modules/project`'s
+new `iam.tf`:** use `google_project_iam_member` (additive), not
+`google_project_iam_binding` (authoritative) like CFF's own project
+module. CFF's project module is meant to fully own project IAM for a
+project it creates fresh. Here, the FinOps stage may be applied against a
+project that already has bindings from elsewhere, so an authoritative
+`_binding` would silently wipe them out on the next apply.
+
+**Least-privilege role substitutions** (verified against GCP's predefined
+role catalog — verify against your actual provider version in a sandbox
+before relying on this):
+
+| Resource | Currently granted | Actually required | Resource-scoped alternative |
+|---|---|---|---|
+| BigQuery dataset + views | `roles/bigquery.admin` | `roles/bigquery.dataEditor` | `google_bigquery_dataset_iam_member` scoped to the dataset, once it exists |
+| Pub/Sub topic | `roles/pubsub.admin` | `roles/pubsub.editor` (`admin` only needed to `setIamPolicy`, unused here) | `google_pubsub_topic_iam_member` scoped to the topic |
+| Notification channels | `roles/monitoring.editor` | `roles/monitoring.notificationChannelEditor` | N/A — Monitoring notification channels have no resource-level IAM; project-level is the finest grain, but the role itself is narrower |
+| Billing budgets | `roles/billing.admin` (billing-account level) | `roles/billing.costsManager` | inherently billing-account-scoped; role itself is narrower |
+| Cloud Function | `roles/cloudfunctions.admin` | `roles/cloudfunctions.developer` (`admin` also allows setting IAM policy, unused here) | `google_cloudfunctions2_function_iam_member` scoped to the function |
+| GCS bucket + object upload | `roles/storage.admin` | No narrower predefined role exists for bucket *creation* — mitigate architecturally: pre-create the bucket once (outside repeated applies), then only need `roles/storage.objectAdmin` scoped to that bucket for uploads |
+| Eventarc trigger | implicit — default compute SA | Dedicated trigger SA with only `roles/eventarc.eventReceiver` + `roles/run.invoker` | `roles/run.invoker` bound to the specific Cloud Run service (2nd-gen functions run on Cloud Run) |
+
+**Service account count — 3 identities, reused across every environment**
+(not one-per-resource, not one-all-admin-SA):
+1. **Terraform deploy SA** (`tf-executor`) — gets the narrowed roles above,
+   granted once per project via the new `iam` variable on `modules/project`.
+2. **Cloud Function runtime SA** — a separate SA from `tf-executor` (today
+   `service_config.service_account_email` reuses `tf-executor`, which is
+   itself a smell). Only needs `roles/secretmanager.secretAccessor` (F9).
+3. **Eventarc trigger SA** — `eventReceiver` + `run.invoker` only.
+
+Environment-wise scoping is handled by GCP project boundaries, not SA
+proliferation: each environment (dev/staging/prod) is its own GCP project,
+and each project gets its own copy of the same three identities with the
+same narrow role set applied within that project.
+
+**How to fix:**
+1. Add `variable "iam" { type = map(list(string)); default = {} }` +
+   `project-iam.tf` to `modules/project` (Pattern A, additive `_member`).
+2. Add the same `iam`/`iam_bindings_additive` pair to `finops-alerts`
+   (Pattern A).
+3. Replace each `*.admin`/`*.editor` grant in `test-finops-dataset/main.tf`
+   with the narrower role from the table above, passed through the new
+   `modules/project` `iam` variable instead of loose resources.
+4. Build the runtime/trigger SAs and their grants inside the new
+   `finops-function` module (Pattern B — see F8), not in `modules/project`.
+5. Pre-create the function-source GCS bucket once, outside this stage's
+   repeated applies, and drop `roles/storage.admin` to
+   `roles/storage.objectAdmin` scoped to that one bucket for the deploy SA.
+
+**AGENTS.md reference:**
+> "Follow least privilege: grant the narrowest role that accomplishes the
+> task, scoped to the narrowest resource level that makes sense (prefer
+> project/resource-level bindings over org-level where possible)."
+> "Prefer `google_*_iam_member` for additive, single-principal grants used
+> alongside other automation. Use `google_*_iam_binding` only when this
+> module is meant to fully own the role's membership list."
+— `BEST_PRACTICES.md`, "IAM and security". CFF's `iam` (owns-the-role) vs.
+`iam_bindings_additive` (doesn't) split is the concrete implementation of
+this exact rule.
+
+**Won't break / scalable:** narrowing IAM roles is safe to roll out
+incrementally — apply the narrower grants first, verify `terraform plan`
+shows no permission-denied errors in a sandbox, then remove the broad
+grants (don't remove-then-add in the same apply). The new `iam` variables
+are purely additive (new optional variable, empty default) — existing
+callers that don't pass `iam` are unaffected. Scales cleanly across
+environments: adding a new environment/project means passing the same
+`iam` map to a new `module.finops_project` call, not designing a new
+permission matrix; adding a new FinOps resource type later means adding
+one row to the role table, not rethinking the whole IAM model.
+
+---
+
+## F8 — No dedicated module for the Cloud Function (single-responsibility gap)
+
+**What we're fixing:** the Cloud Function (Gmail/Teams budget-alert
+processor), its GCS source bucket, and its Eventarc trigger are all loose
+resources directly inside `test-finops-dataset/main.tf`, instead of living
+in their own module. This is the same "one module = one clear
+responsibility" pattern already applied to BigQuery (`finops-dataset`),
+views (`finops-views`), Pub/Sub (`finops-alerts`), and budgets
+(`finops-budgets`) — the Cloud Function is the one resource type in this
+stage that never got its own module.
+
+**Why we need this fix:** every other GCP resource type in this stage has
+exactly one module that owns it end-to-end, including its own IAM
+surface. Leaving the Cloud Function as loose root-level resources means:
+it has no reusable interface (can't be called from a second stage without
+copy-pasting ~100 lines), no `examples/basic/` (F5) can be written for it,
+and — most importantly for IAM — it has nowhere natural to own its own
+runtime/trigger service accounts, which is why it currently reuses
+`tf-executor` (flagged in F7) instead of having its own least-privilege
+identity.
+
+**How to fix:**
+1. Create a new top-level module, `finops-function/`, following Pattern B
+   from **F7** (CFF's `cloud-function-v2` shape):
+   - `main.tf`: the `google_cloudfunctions2_function` resource (moved as-is
+     from `test-finops-dataset/main.tf`), the GCS bucket + object for the
+     source zip, and the Eventarc trigger.
+   - `serviceaccount.tf`: creates its own runtime SA (`google_service_account`)
+     and grants it project roles via a `service_account_config.roles`
+     variable (default `["roles/secretmanager.secretAccessor"]`), exactly
+     like CFF's `cloud-function-v2/serviceaccount.tf`.
+   - A second SA + grant for the Eventarc trigger
+     (`roles/eventarc.eventReceiver` + `roles/run.invoker`, per F7's table).
+   - `variables.tf`, `outputs.tf` (function URL, SA emails), `versions.tf`,
+     `README.md` — standard file layout per `agents.md`.
+   - Do **not** give this module an `iam.tf`/`iam` variable — nothing
+     needs to reach *into* a Cloud Function in this stage; it only needs to
+     act, which is what `service_account_config.roles` covers.
+2. Replace the loose resources in `test-finops-dataset/main.tf` with a
+   single `module "finops_function"` call.
+3. Add `finops-function/examples/basic/` per **F5** once the module exists.
+
+**AGENTS.md reference:**
+> "One module = one clear responsibility. If a module is doing IAM,
+> networking, and logging all at once, split it."
+> "Check the repo root for an existing module directory covering the same
+> or adjacent resource before creating a new one... create a new one if it
+> doesn't [fit an existing module's responsibility]."
+— `BEST_PRACTICES.md` and `agents.md` item 3–4. The Cloud Function doesn't
+fit any existing module's stated responsibility (BigQuery, Pub/Sub, and
+budgets modules are all resource-type-specific) — it needs its own module,
+the same way `finops-alerts` exists specifically for Pub/Sub rather than
+being folded into `finops-dataset`.
+
+**Won't break / scalable:** moving existing resources into a new module
+changes their state addresses — either `terraform state mv` each resource
+into the new module path, or accept a one-time destroy/recreate since this
+Cloud Function is not yet in a production state on this branch. Once
+extracted, every future FinOps stage/environment that needs the same
+alerting function calls one module instead of copy-pasting ~100 lines of
+root-level resources — and if a second, different Cloud Function is ever
+needed elsewhere in this repo, the same single-responsibility rule applies:
+build a second dedicated module for it, don't grow this one to do two
+functions' worth of logic (matching CFF's own approach — one
+`cloud-function-v2` module, called multiple times for multiple functions,
+never customized per-caller to do something function-specific in its own
+code).
+
+---
+
+## F9 — Secrets passed to the Cloud Function as plaintext environment variables
+
+**What we're fixing:** `google_cloudfunctions2_function.budget_alert_processor`
+sets `GMAIL_APP_PASSWORD` and `TEAMS_WEBHOOK_URL` via plain
+`environment_variables`, even though the corresponding Terraform variables
+(`gmail_app_password`, `teams_webhook_url`) are correctly marked
+`sensitive = true`.
+
+**Why we need this fix:** marking a Terraform variable `sensitive` only
+hides it from CLI/plan output — it does nothing to protect the value once
+it's written into the Cloud Function's *revision configuration*, which is
+visible in plaintext to anyone with `cloudfunctions.viewer`/`run.viewer` on
+the function, and can also surface in Cloud Build/Cloud Logging metadata
+during deploys. This ends up stored just as insecurely as a hardcoded
+secret, just in resource metadata instead of source.
+
+**How to fix:**
+1. Create `google_secret_manager_secret` +
+   `google_secret_manager_secret_version` resources for
+   `gmail_app_password` and `teams_webhook_url` (values still sourced from
+   the existing sensitive Terraform variables — no change to how the
+   caller supplies them). Do this inside the new `finops-function` module
+   from **F8**.
+2. Grant the function's runtime SA (from F8's `serviceaccount.tf`)
+   `roles/secretmanager.secretAccessor` on those two secrets specifically.
+3. Replace the two entries in `environment_variables` with
+   `secret_environment_variables` blocks in `service_config`.
+4. Add `secretmanager.googleapis.com` to the consolidated API list from
+   **F13** rather than adding another one-off `google_project_service`
+   resource.
+
+**AGENTS.md reference:**
+> "Never hardcode credentials, keys, or secrets in code or `.tfvars`
+> committed to the repo."
+— `BEST_PRACTICES.md`, "IAM and security". The intent (don't let secrets
+sit somewhere readable) applies to resource metadata just as much as
+source code.
+
+**Won't break / scalable:** changes how the two variables reach the
+function at runtime but not their Terraform interface (same input
+variable names/types) — a caller's `.tfvars` doesn't change. Python code
+in `main.py` reads `os.environ.get(...)`, and Secret Manager-backed
+`secret_environment_variables` are exposed the same way at runtime — no
+code change needed in `main.py`. Scales to any future secret the function
+needs without inventing a new pattern.
+
+---
+
+## F10 — Function code robustness issues
+
+**What we're fixing:** two issues in `test-finops-dataset/function-source/`
+(move to `finops-function/function-source/` per F8):
+1. `main.py`'s `process_budget_alert` falls back to
+   `ast.literal_eval(pubsub_message)` if `json.loads()` fails.
+2. `test_local.py` has a leading UTF-8 BOM byte before its first `import`.
+
+**Why we need this fix:**
+1. GCP billing budget Pub/Sub notifications are documented to always be
+   valid JSON. The `ast.literal_eval` fallback parses external, untrusted
+   message data with a Python literal evaluator for a case that should
+   never occur — an unnecessary, rarely-tested attack surface. If
+   `json.loads` ever does fail, that's a signal something is wrong
+   upstream and should be logged/alerted on, not silently worked around.
+2. A stray BOM byte is harmless to Python 3's execution here but is a
+   symptom of inconsistent file encoding (same root cause as F11).
+
+**How to fix:**
+1. Remove the `try/except json.JSONDecodeError` + `ast.literal_eval`
+   fallback in `main.py`; let `json.loads(pubsub_message)` raise directly
+   (the Cloud Functions framework logs the exception and the Pub/Sub
+   message is retried/dead-lettered per the function's `retry_policy`).
+2. Re-save `test_local.py` as UTF-8 without BOM (see F11 for the batch
+   fix).
+
+**AGENTS.md reference:** no direct line item (this is Python application
+code, outside `BEST_PRACTICES.md`'s Terraform-specific rules) — flagged as
+general secure-coding hygiene: avoid parsing untrusted input with more
+permissive parsers than necessary.
+
+**Won't break / scalable:** removing the fallback narrows accepted input,
+which is the point — if it was never actually being hit, removing it
+changes nothing in production behavior and only removes risky dead code.
+
+---
+
+## F11 — File encoding inconsistencies (mojibake / BOM)
+
+**What we're fixing:** `finops-alerts/main.tf` has mojibake in its comments
+(`â€”` where an em-dash `—` was intended), and
+`function-source/test_local.py` has a leading UTF-8 BOM.
+
+**Why we need this fix:** cosmetic today (Terraform/Python both still
+parse these files fine) but it's a signal of inconsistent editor/encoding
+settings across contributors, and mojibake in comments makes them harder
+to read. Cheap to fix now before more files pick up the same issue.
+
+**How to fix:** re-save both files as UTF-8 (no BOM):
+```powershell
+$content = Get-Content -Raw -Encoding UTF8 finops-alerts/main.tf
+[System.IO.File]::WriteAllText("finops-alerts/main.tf", $content, (New-Object System.Text.UTF8Encoding($false)))
+```
+Repeat for `test_local.py`. Diff afterward to confirm only the encoding
+changed (`git diff --stat` should show the same line count).
+
+**AGENTS.md reference:** none directly — general hygiene.
+
+**Won't break / scalable:** text-only change, no semantic difference to
+Terraform or Python parsing. Zero risk.
+
+---
+
+## F12 — Verify `budget_filter.labels` against the current provider schema
+
+**What we're fixing:** `finops-budget-controls/main.tf`'s `budget_filter`
+block sets a `labels` attribute
+(`labels = try(each.value.filter_labels, null)`) — needs a quick check
+against the pinned `google` provider version (`~> 6.0`) to confirm the
+field's expected shape (flat `map(string)` vs. a list of `{key, values}`
+objects — the GCP Billing Budgets API has changed this field's shape
+across API versions before).
+
+**Why we need this fix:** if the shape doesn't match what the provider
+expects, this fails at `terraform apply` (or worse, silently accepts a
+value that doesn't do what's intended).
+
+**How to fix:**
+1. Check the `google_billing_budget` resource docs for provider `~> 6.0`
+   (or `terraform providers schema -json` against a sandbox project) for
+   `budget_filter.labels`'s exact type.
+2. If it doesn't match `map(string)`, update the (post-F2, merged)
+   `finops-budgets` variable type and resource block accordingly, and add
+   a `validation` block if the shape is easy to get wrong.
+3. Confirm with a `terraform plan` against a sandbox project — this
+   attribute won't show a problem in `terraform validate` alone if the
+   type happens to coerce.
+
+**AGENTS.md reference:**
+> "Validate inputs with `validation` blocks where a bad value would fail
+> late or unclearly otherwise."
+— `BEST_PRACTICES.md`, "Variables and outputs".
+
+**Won't break / scalable:** a verification step, not a guaranteed code
+change — only touch the resource/variable if the check turns up a real
+mismatch. If a fix is needed, treat it as a breaking variable-type change
+like F4 (bump version, update callers).
+
+---
+
+## F13 — API enablement is scattered instead of owned by `modules/project`
+
+**What we're fixing:** `test-finops-dataset/main.tf` has **8 separate
+`google_project_service` resources** split across two disconnected
+locations in the file — `billingbudgets`, `pubsub`, `monitoring` in one
+block, and `cloudbuild`, `cloudfunctions`, `run`, `eventarc`,
+`artifactregistry` in a second block added later ("Additional APIs needed
+for Cloud Functions 2nd gen"). Neither block calls `modules/project` at
+all — `modules/project` isn't referenced anywhere in
+`test-finops-dataset`.
+
+**Why we need this fix:** `modules/project` **already owns this exact
+responsibility** — it has a working `activate_apis` variable that does
+`for_each` over a list and creates `google_project_service` per API. Right
+now the same job is duplicated by hand, split across two unrelated
+locations, making it easy to add a new API in one place and forget the
+dependency chain elsewhere (this already happened once — the second
+block's own "Additional APIs needed" comment is the tell that the first
+block was incomplete when written).
+
+**Confirmed against CFF directly** (checked CFF's `modules/project/main.tf`,
+and confirmed `bigquery-dataset`, `pubsub`, `cloud-function-v2`, and
+`billing-account` have **zero** `google_project_service` resources between
+them): CFF enables APIs in exactly one place —
+`google_project_service.project_services`, a single `for_each` over a
+`variable "services" { type = list(string) }` inside the `project`
+module, sequenced after project creation and org-policy application, with
+every other resource inside the project module that needs an API
+depending on it via `depends_on`. No other CFF module — not
+`bigquery-dataset`, not `pubsub`, not `cloud-function-v2` — ever enables
+its own APIs; they all assume the calling root enabled what they need via
+the `project` module first. **This is the rule this stage should follow:
+API enablement is a project-lifecycle concern, owned exclusively by the
+project module, done once, before any resource module runs — never
+duplicated or scattered per-resource.** (Naming note: CFF calls the
+variable `services`; this repo's `modules/project` already calls the
+equivalent `activate_apis` — functionally identical, no fix needed for the
+name itself.)
+
+**How to fix:**
+1. Add a call to `module "project"` in `test-finops-dataset/main.tf` (or,
+   if the project is confirmed pre-existing/shared and out of this
+   stage's ownership, at minimum consolidate all 8 resources into one
+   `locals.apis` list + a single `for_each` block in one file) — either
+   way, one list, one place.
+2. Pass the full list in one shot:
+   ```hcl
+   activate_apis = [
+     "billingbudgets.googleapis.com", "pubsub.googleapis.com",
+     "monitoring.googleapis.com", "cloudbuild.googleapis.com",
+     "cloudfunctions.googleapis.com", "run.googleapis.com",
+     "eventarc.googleapis.com", "artifactregistry.googleapis.com",
+     "secretmanager.googleapis.com", # needed for F9's fix
+   ]
+   ```
+3. Update every `depends_on` currently pointing at
+   `google_project_service.<name>` to point at `module.finops_project`
+   instead.
+4. Pass the new `iam` variable from **F7** in the *same* module call — one
+   `module "project"` block becomes the single place that knows everything
+   needed to stand up a usable, correctly-permissioned project, matching
+   CFF's model exactly.
+5. **Going forward, treat any new finops module that tries to enable its
+   own APIs as a finding, not a pattern to repeat** — if a future
+   `finops-*` module (or the new `finops-function` from F8) adds its own
+   `google_project_service` resource instead of requiring its APIs be
+   listed in the caller's `activate_apis` list, that module is violating
+   this same rule and should be fixed the same way.
+
+**AGENTS.md reference:**
+> "Check the repo root for an existing module directory covering the same
+> or adjacent resource before creating a new one... Extend an existing
+> module if the resource fits its stated responsibility."
+— `agents.md`, "Before creating or editing a module". `modules/project`
+already covers "project + its APIs"; re-implementing that inline in
+`test-finops-dataset` instead of calling it is the exact anti-pattern this
+line warns against.
+
+**Won't break / scalable:** `google_project_service` resources are
+idempotent — moving existing API-enable calls into
+`module.finops_project`'s `for_each` targets the same underlying GCP
+resources, so either accept a one-time `terraform state mv` per API
+resource, or let Terraform recreate the enablement (harmless — enabling an
+already-enabled API is a no-op on GCP's side). The new `iam.tf` in
+`modules/project` (F7) is purely additive. Every future finops resource
+that needs an API just adds one string to the one `activate_apis` list —
+no new files, no new module, no re-deriving where things belong.
+
+---
+
+## F14 — Validation before merge (run after all fixes above)
+
+**What we're fixing/checking:** none of the fixes above have been run
+through `terraform fmt`, `terraform validate`, or a real `terraform plan`
+yet.
+
+**Why we need this fix:** `agents.md`'s own checklist requires this before
+any module is considered done — describing a fix is not the same as
+Terraform confirming it.
+
+**How to fix:**
+1. `terraform fmt -recursive` at the repo root.
+2. `terraform validate` inside each of the modules' `examples/basic/` (F5,
+   F8) and inside `test-finops-dataset/` (or its renamed equivalent, F6).
+3. `terraform plan` against a real or sandbox GCP project for
+   `test-finops-dataset/` — review the diff line by line, specifically
+   checking: (a) no unexpected destroy/recreate of `google_billing_budget`
+   resources from the F2 merge, (b) the F4 interface fix doesn't produce a
+   plan error on `monitoring_notification_channels`, (c) the F3 view move
+   creates the new views under `finops-views` and destroys the old ones
+   cleanly (expected one-time recreate, not a repeating diff on every
+   plan), (d) the F8 Cloud Function extraction doesn't show an unexpected
+   destroy/recreate of the function itself.
+
+**AGENTS.md reference:**
+> "`terraform fmt` and `terraform validate` run clean." /
+> "`terraform plan` reviewed against a real or sandbox project — don't stop
+> at `validate` passing."
+— `agents.md`, "Creating a new module — checklist" (last two items).
+
+**Won't break / scalable:** this step is how you confirm nothing broke —
+run it after every fix above, not just once at the very end, so any
+regression is caught against the specific change that caused it.
+
+---
+
+## Appendix — `for_each`/`dynamic` loop review (reviewed, no fix needed)
+
+**What was checked:** every `for_each`/`dynamic` block across all 5
+modules, against `BEST_PRACTICES.md`'s rule: *"Avoid complex loops...
+Nested loops (a `for_each` producing another `for_each`, or deeply nested
+`for` expressions) are not [fine] — if you need one, restructure the
+input data instead of nesting the logic."*
+
+**Finding:** `finops-budgets` and `finops-budget-controls` each have a
+resource-level `for_each` (over `var.budgets` / `var.scopes`) containing a
+nested `dynamic "threshold_rules" { for_each = each.value.threshold_rules }`
+block. Read literally, this is "a `for_each` producing another `for_each`"
+— but this is **not** a violation, and does not need restructuring:
+- The GCP `google_billing_budget` resource schema itself requires a
+  repeatable `threshold_rules` nested block per budget — there is no way
+  to express "N budgets, each with M threshold rules" in Terraform without
+  a `dynamic` block nested inside a `for_each`'d resource. This is the
+  language's standard idiom for that shape, not avoidable complexity.
+- **Verified against CFF's own `billing-account` module**
+  (`modules/billing-account/budgets.tf`): identical pattern —
+  `for_each = merge(local.factory_budgets, var.budgets)` on
+  `google_billing_budget.default`, with a nested
+  `dynamic "threshold_rules"` — and in places goes one level further (a
+  `dynamic "custom_period"` containing a nested `dynamic "end_date"`). If
+  CFF, the stricter reference implementation, uses this pattern, it's
+  accepted practice.
+- `finops-dataset`, `finops-views`, and `finops-alerts` all use a single
+  flat `for_each` with no nesting — no concerns there either.
+
+**The one loop that *is* a problem:** `finops-budgets`'s
+`google_bigquery_table.finops_budgets_view` builds its SQL using a
+string-templated `%{for}...%{endfor}` loop inside a heredoc — a different,
+genuinely worse pattern than a `dynamic` block: harder to read, impossible
+to unit-test, inconsistent with `finops-views`'s clean `locals` map +
+`for_each` factory style. Already covered by **F3** — no separate action
+needed.
+
+**Conclusion:** no additional fix required for `for_each`/`dynamic` usage
+beyond what F3 already addresses.

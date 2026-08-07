@@ -13,9 +13,15 @@ variable "project_id" {
 }
 
 variable "dataset_id" {
-  description = "BigQuery dataset ID (must be unique within the project)"
+  description = "BigQuery dataset ID (must be unique within the project). Ignored when existing_dataset_id is set."
   type        = string
   default     = "billing_export"
+}
+
+variable "existing_dataset_id" {
+  description = "ID of an existing BigQuery dataset to use instead of creating one. When null (default), this module creates a new dataset."
+  type        = string
+  default     = null
 }
 
 variable "location" {
@@ -36,13 +42,31 @@ variable "labels" {
 }
 
 variable "iam" {
-  description = "Dataset-level IAM bindings. Key = IAM role, value = list of members"
-  type        = map(list(string))
-  default     = {}
+  description = "List of role/member grants. Each entry is one role assigned to one member."
+  type = list(object({
+    role   = string
+    member = string
+  }))
+  default = []
 
   # Example:
-  # {
-  #   "roles/bigquery.dataViewer" = ["group:finops-team@example.com"]
-  #   "roles/bigquery.dataEditor" = ["serviceAccount:etl-sa@..."]
-  # }
+  # [
+  #   { role = "roles/bigquery.dataViewer", member = "group:finops-team@example.com" },
+  #   { role = "roles/bigquery.dataEditor", member = "serviceAccount:etl-sa@..." },
+  # ]
+}
+
+variable "enable_views" {
+  description = "If true, create the BigQuery views supplied in var.views. If false, var.views is ignored and no views are created."
+  type        = bool
+  default     = true
+}
+
+variable "views" {
+  description = "Map of BigQuery view definitions to create when enable_views = true. Key = view/table_id, value = { friendly_name, query }."
+  type = map(object({
+    friendly_name = string
+    query         = string
+  }))
+  default = {}
 }

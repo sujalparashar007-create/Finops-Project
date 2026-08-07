@@ -24,8 +24,9 @@ budget_control_scopes:
     display_name: "Dev Projects Budget"
     currency_code: "INR"
     units: "20000"
-    filter_projects:
-      - "projects/finops-foundation-test"
+    budget_filter:
+      projects:
+        - "projects/finops-foundation-test"
     budget_month: "2026-08"
     threshold_rules:
       - threshold_percent: 0.5

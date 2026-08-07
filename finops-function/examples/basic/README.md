@@ -11,7 +11,7 @@ module "finops_function" {
   region          = "us-east1"
   pubsub_topic_id = "projects/my-project/topics/finops-budget-alerts"
 
-  service_account_email = "tf-executor@my-project.iam.gserviceaccount.com"
+  existing_service_account_email = "tf-executor@my-project.iam.gserviceaccount.com"
 
   environment_variables = {
     GMAIL_USER = "alerts@example.com"
@@ -52,7 +52,7 @@ terraform plan
 | `pubsub_topic_id` | `string` | `"projects/my-project/topics/finops-budget-alerts"` | Full Pub/Sub topic ID to trigger the function |
 | `function_source_dir` | `string` | `"./function-source"` | Path to directory containing main.py and requirements.txt |
 | `bucket_name` | `string` | `"finops-function-source"` | GCS bucket name for storing function source code |
-| `service_account_email` | `string` | `"tf-executor@my-project.iam.gserviceaccount.com"` | Service account email for the Cloud Function runtime |
+| `existing_service_account_email` | `string` | `"tf-executor@my-project.iam.gserviceaccount.com"` | Runtime SA (null = create dedicated SA) |
 | `secret_environment` | `map(string)` | `{}` | Sensitive values stored in Secret Manager and exposed to the function |
 
 ## Outputs

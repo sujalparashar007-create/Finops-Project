@@ -31,7 +31,7 @@ resource "google_storage_bucket_object" "function_zip" {
 # ------------------------------------------------------------------------------
 
 resource "google_secret_manager_secret" "secrets" {
-  for_each = var.secret_environment
+  for_each = { for k, v in var.secret_environment : k => v if !contains(keys(var.existing_secret_ids), k) }
 
   secret_id = "${var.function_name}-${each.key}"
   project   = var.project_id
@@ -46,7 +46,7 @@ resource "google_secret_manager_secret" "secrets" {
 }
 
 resource "google_secret_manager_secret_version" "versions" {
-  for_each = var.secret_environment
+  for_each = { for k, v in var.secret_environment : k => v if !contains(keys(var.existing_secret_ids), k) }
 
   secret      = google_secret_manager_secret.secrets[each.key].id
   secret_data = each.value
@@ -63,50 +63,66 @@ resource "google_secret_manager_secret_iam_member" "accessor" {
   member    = "serviceAccount:${local.service_account_email}"
 }
 
-# Grant Eventarc permission to invoke the Cloud Run service (not allUsers)
-resource "google_cloud_run_service_iam_member" "pubsub_invoker" {
+# Grant additional members (e.g. human users) access to read the secrets
+resource "google_secret_manager_secret_iam_member" "additional_accessors" {
+  for_each = {
+    for pair in setproduct(keys(var.secret_environment), var.secret_accessors) :
+    "${pair[0]}/${pair[1]}" => { secret_key = pair[0], member = pair[1] }
+  }
+
+  secret_id = google_secret_manager_secret.secrets[each.value.secret_key].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = each.value.member
+}
+
+# Project lookup (needed for Compute Engine default SA email)
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+# Dedicated runtime service account (created only when no existing SA is supplied)
+resource "google_service_account" "function_runtime" {
+  count = var.existing_service_account_email == null ? 1 : 0
+
+  project      = var.project_id
+  account_id   = "${replace(var.function_name, "finops-budget-alert", "fba")}-sa"
+  display_name = "Runtime SA for ${var.function_name} (finops-function module)"
+}
+
+locals {
+  create_service_account = var.existing_service_account_email == null
+
+  service_account_email = (
+    var.existing_service_account_email != null
+    ? var.existing_service_account_email
+    : google_service_account.function_runtime[0].email
+  )
+
+  # Compute Engine default SA — used by Eventarc trigger when service_account_email is not set
+  compute_default_sa = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+
+  # All secret IDs (newly-created + caller-supplied existing ones)
+  secret_ids = merge(
+    { for k, v in google_secret_manager_secret.secrets : k => v.secret_id },
+    var.existing_secret_ids
+  )
+}
+
+# Grant Eventarc permission to invoke the Cloud Run service via the Compute Engine default SA
+resource "google_cloud_run_service_iam_member" "eventarc_invoker" {
   count    = var.enable_function ? 1 : 0
   project  = var.project_id
   location = var.region
   service  = var.function_name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${local.eventarc_service_agent}"
+  member   = "serviceAccount:${local.compute_default_sa}"
 
   depends_on = [google_cloudfunctions2_function.alert_processor]
 }
 
-# ------------------------------------------------------------------------------
-# CLOUD FUNCTION
-# ------------------------------------------------------------------------------
-
-# Look up the project number (needed for Eventarc service agent email)
-data "google_project" "project" {
-  project_id = var.project_id
-}
-
-# Dedicated runtime service account (CFF pattern)
-resource "google_service_account" "function_runtime" {
-  count = var.create_service_account ? 1 : 0
-
-  project      = var.project_id
-  account_id   = "${replace(var.function_name, "finops-budget", "fb")}-sa"
-  display_name = "Runtime SA for ${var.function_name} (finops-function module)"
-}
-
-locals {
-  service_account_email = (
-    var.create_service_account
-    ? google_service_account.function_runtime[0].email
-    : var.service_account_email
-  )
-
-  # Eventarc service agent — the only identity that should invoke the Cloud Run service
-  eventarc_service_agent = "service-${data.google_project.project.number}@gcp-sa-eventarc.iam.gserviceaccount.com"
-}
-
 # Grant the dedicated runtime SA roles if specified
 resource "google_project_iam_member" "runtime_sa_roles" {
-  for_each = var.create_service_account ? toset(var.runtime_sa_roles) : toset([])
+  for_each = local.create_service_account ? toset(var.runtime_sa_roles) : toset([])
 
   project = var.project_id
   role    = each.key
@@ -121,9 +137,8 @@ resource "google_cloudfunctions2_function" "alert_processor" {
   description = "Processes budget alert messages from Pub/Sub and logs them to Cloud Logging"
 
   build_config {
-    runtime         = var.runtime
-    entry_point     = "process_budget_alert"
-    service_account = "projects/${var.project_id}/serviceAccounts/${local.service_account_email}"
+    runtime     = var.runtime
+    entry_point = "process_budget_alert"
 
     source {
       storage_source {
@@ -146,7 +161,7 @@ resource "google_cloudfunctions2_function" "alert_processor" {
       content {
         key        = secret_environment_variables.key
         project_id = var.project_id
-        secret     = google_secret_manager_secret.secrets[secret_environment_variables.key].secret_id
+        secret     = local.secret_ids[secret_environment_variables.key]
         version    = "latest"
       }
     }

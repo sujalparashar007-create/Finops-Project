@@ -65,20 +65,14 @@ variable "timeout_seconds" {
   default     = 60
 }
 
-variable "service_account_email" {
-  description = "Service account email for the Cloud Function runtime identity. Required when create_service_account = false."
+variable "existing_service_account_email" {
+  description = "Email of an existing service account to use as the Cloud Function runtime identity. When null (default), this module creates a dedicated runtime SA."
   type        = string
-  default     = ""
-}
-
-variable "create_service_account" {
-  description = "If true, this module creates a dedicated runtime service account instead of requiring one via service_account_email (CFF pattern)."
-  type        = bool
-  default     = true
+  default     = null
 }
 
 variable "runtime_sa_roles" {
-  description = "Project-level IAM roles granted to the dedicated runtime SA when create_service_account = true"
+  description = "Project-level IAM roles granted to the dedicated runtime SA when it is created by this module (i.e., when existing_service_account_email is null)."
   type        = list(string)
   default = [
     "roles/logging.logWriter",
@@ -98,8 +92,21 @@ variable "secret_environment" {
   default     = {}
 }
 
+variable "existing_secret_ids" {
+  description = "Map of secret key → existing Secret Manager secret ID. Keys present here skip secret creation; the caller must already own the secret."
+  type        = map(string)
+  default     = {}
+}
+
+variable "secret_accessors" {
+  description = "Additional members (besides the runtime SA) granted secretAccessor on this function's secrets."
+  type        = list(string)
+  default     = []
+}
+
 variable "enable_function" {
   description = "Set to false to skip Cloud Function creation (no budget alert processing)"
   type        = bool
   default     = true
 }
+

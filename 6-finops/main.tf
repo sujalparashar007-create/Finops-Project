@@ -56,35 +56,18 @@ module "finops_foundation" {
 module "finops_dataset" {
   source = "../finops-dataset"
 
-  project_id = var.project_id
-  dataset_id = var.dataset_id
-  location   = var.dataset_location
+  project_id   = var.project_id
+  dataset_id   = var.dataset_id
+  location     = var.dataset_location
+  enable_views = true
+  views        = local.finops_view_definitions
 
   labels = var.labels
 
   iam = var.dataset_iam
 
   depends_on = [
-    module.finops_foundation
-  ]
-}
-
-# ==============================================================================
-# STEP 4: Module 1 - SQL Reporting Views (depends on dataset)
-# ==============================================================================
-
-module "finops_views" {
-  source = "../finops-views"
-
-  project_id = module.finops_dataset.project_id
-  dataset_id = module.finops_dataset.dataset_id
-
-  billing_export_table_id = var.billing_export_table_id
-
-  budget_targets = module.finops_budgets.budget_amounts
-
-  depends_on = [
-    module.finops_dataset,
+    module.finops_foundation,
     module.finops_budgets
   ]
 }
@@ -96,7 +79,7 @@ module "finops_views" {
 module "finops_alerts" {
   source = "../finops-alerts"
 
-  project_id   = module.finops_dataset.project_id
+  project_id   = var.project_id
   topic_name   = var.topic_name
   alert_emails = var.alert_emails
 

@@ -1,6 +1,6 @@
 # finops-dataset — Basic Example
 
-Minimal example that creates a BigQuery dataset with IAM bindings.
+Minimal example that creates a BigQuery dataset with additive IAM grants.
 ## Usage
 
 ```hcl
@@ -16,9 +16,9 @@ module "finops_dataset" {
     managed_by  = "terraform"
   }
 
-  iam = {
-    "roles/bigquery.dataViewer" = ["group:finops-team@example.com"]
-  }
+  iam = [
+    { role = "roles/bigquery.dataViewer", member = "group:finops-team@example.com" },
+  ]
 }
 ```
 
@@ -34,14 +34,14 @@ terraform plan
 ## What it creates
 
 - `google_bigquery_dataset` — Dataset for FinOps reporting views
-- `google_bigquery_dataset_iam_binding` — Per-role IAM bindings
+- `google_bigquery_dataset_iam_member` — Additive IAM grants per role/member pair
 
 ## Inputs
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `project_id` | `string` | `"my-project-id"` | GCP project ID for the BigQuery dataset |
-| `dataset_iam` | `map(list(string))` | `{"roles/bigquery.dataViewer" = ["group:finops-team@example.com"]}` | Dataset-level IAM bindings |
+| `iam` | `list(object({role,member}))` | `[{ role = "roles/bigquery.dataViewer", member = "group:finops-team@example.com" }]` | Additive IAM grants |
 
 ## Outputs
 

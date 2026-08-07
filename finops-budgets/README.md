@@ -41,7 +41,7 @@ module "finops_budgets" {
 | `billing_account` | `string` | (required) | GCP billing account ID |
 | `pubsub_topic_id` | `string` | `""` | Full Pub/Sub topic ID for alert publishing |
 | `notification_channel_ids` | `map(string)` | `{}` | Map of email ? notification channel ID |
-| `budgets` | `map(object({...}))` | `{}` | Budget definitions with optional scoping |
+| `budgets` | `map(object({...}))` | `{}` | Budget definitions. Each budget accepts: `budget_filter` (nested object with optional `projects`, `resource_ancestors`, `labels`, `services`), `credit_types_treatment` (`INCLUDE_ALL_CREDITS` / `EXCLUDE_ALL_CREDITS` / `INCLUDE_SPECIFIED_CREDITS`), `calendar_period` (`MONTH` / `QUARTER` / `YEAR`), `threshold_rules` (each with `threshold_percent` and optional `spend_basis`: `CURRENT_SPEND` or `FORECASTED_SPEND`) |
 | `iam_viewers` | `list(string)` | `[]` | Members granted billing.viewer |
 
 ## Outputs

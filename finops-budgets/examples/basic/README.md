@@ -60,4 +60,4 @@ terraform plan
 | Name | Description |
 |------|-------------|
 | `budget_ids` | Map of budget key to resource name |
-| `budget_amounts` | Budget amount structs consumed by finops-views |
+| `budget_amounts` | Budget amount structs consumed by finops-dataset for the finops_budgets view |

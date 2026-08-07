@@ -15,10 +15,10 @@ output "dataset_full_id" {
 
 output "view_ids" {
   description = "Map of view name to fully qualified table ID"
-  value       = module.finops_views.view_ids
+  value       = module.finops_dataset.view_ids
 }
 
 output "monthly_kpi_summary_id" {
   description = "Fully qualified monthly_kpi_summary view ID - use as data source in Looker Studio / Dashboard 1"
-  value       = try(module.finops_views.view_ids["monthly_kpi_summary"], null)
+  value       = try(module.finops_dataset.view_ids["monthly_kpi_summary"], null)
 }

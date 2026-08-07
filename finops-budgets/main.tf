@@ -32,7 +32,10 @@ resource "google_billing_budget" "budget" {
   }
 
   budget_filter {
-    projects               = try(each.value.filter_projects, null)
+    projects               = try(each.value.budget_filter.projects, null)
+    resource_ancestors     = try(each.value.budget_filter.resource_ancestors, null)
+    labels                 = try(each.value.budget_filter.labels, null)
+    services               = try(each.value.budget_filter.services, null)
     credit_types_treatment = try(each.value.credit_types_treatment, "INCLUDE_ALL_CREDITS")
     calendar_period        = try(each.value.calendar_period, "MONTH")
   }

@@ -34,11 +34,16 @@ variable "budgets" {
       threshold_percent = number
       spend_basis       = optional(string, "CURRENT_SPEND")
     }))
+    budget_filter = optional(object({
+      projects           = optional(list(string))
+      resource_ancestors = optional(list(string))
+      labels             = optional(map(string))
+      services           = optional(list(string))
+    }))
     monitoring_notification_channels = optional(list(string), [])
     disable_default_iam_recipients   = optional(bool, false)
     enable_project_level_recipients  = optional(bool, true)
     credit_types_treatment           = optional(string, "INCLUDE_ALL_CREDITS")
-    filter_projects                  = optional(list(string))
     calendar_period                  = optional(string, "MONTH")
     budget_month                     = optional(string)
     budget_project                   = optional(string)

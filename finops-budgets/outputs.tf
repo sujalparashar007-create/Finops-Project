@@ -13,7 +13,7 @@ output "budget_amounts" {
   value = flatten([
     for k, v in var.budgets : [
       for project in coalesce(
-        try(v.filter_projects, null),
+        try(v.budget_filter.projects, null),
         [try(v.budget_project, "projects/unknown")]
         ) : {
         month         = try(v.budget_month, "")

@@ -74,11 +74,15 @@ variable "terraform_sa_roles" {
     "roles/monitoring.editor",
     "roles/storage.admin",
     "roles/cloudfunctions.admin",
+    "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.admin",
+    "roles/iam.serviceAccountAdmin",
     "roles/iam.serviceAccountUser",
     "roles/logging.logWriter",
     "roles/artifactregistry.writer",
     "roles/artifactregistry.reader",
+    "roles/run.admin",
+    "roles/eventarc.eventReceiver",
   ]
 }
 

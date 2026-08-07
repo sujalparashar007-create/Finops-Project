@@ -32,3 +32,24 @@ variable "labels" {
     managed_by  = "terraform"
   }
 }
+
+variable "iam" {
+  description = "Additional IAM grants on this module's Pub/Sub topic. Each entry is one role assigned to one member."
+  type = list(object({
+    role   = string
+    member = string
+  }))
+  default = []
+}
+
+variable "existing_topic_id" {
+  description = "Full ID of an existing Pub/Sub topic to use instead of creating one. When null (default), this module creates a new topic."
+  type        = string
+  default     = null
+}
+
+variable "existing_notification_channel_ids" {
+  description = "Map of email → existing notification channel ID. Emails present here skip channel creation."
+  type        = map(string)
+  default     = {}
+}

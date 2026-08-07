@@ -59,7 +59,7 @@ terraform apply
 | Resource | Detail |
 |---|---|
 | GCP Project | `finops-foundation-test` under org `563019909339` |
-| `tf-executor` SA | 7 project-level IAM roles |
+| `tf-executor` SA | 9 project-level IAM roles |
 | SA IAM | Your user → `roles/iam.serviceAccountTokenCreator` on `tf-executor` |
 | Billing IAM | `tf-executor` → `roles/billing.admin` on `01A325-032DBC-FAB4E4` |
 

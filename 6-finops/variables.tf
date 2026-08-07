@@ -117,9 +117,12 @@ variable "iam_viewers" {
 }
 
 variable "dataset_iam" {
-  description = "Dataset-level IAM bindings. Key = IAM role, value = list of members"
-  type        = map(list(string))
-  default     = {}
+  description = "List of role/member grants for the FinOps BigQuery dataset."
+  type = list(object({
+    role   = string
+    member = string
+  }))
+  default = []
 }
 
 # ------------------------------------------------------------------------------

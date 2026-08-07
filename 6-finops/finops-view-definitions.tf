@@ -35,10 +35,15 @@ locals {
   billing_export_source = var.billing_export_table_id
 
   finops_budgets_rows = join(",\n", [
-    for t in var.budget_targets : format("    STRUCT(\"%s\" AS month, \"%s\" AS project_id, \"%s\" AS currency, %s AS budget_amount)", t.month, t.project_id, t.currency, t.budget_amount)
+    for t in module.finops_budgets.budget_amounts : format("    STRUCT(\"%s\" AS month, \"%s\" AS project_id, \"%s\" AS currency, %s AS budget_amount)", t.month, t.project_id, t.currency, t.budget_amount)
   ])
 
-  views = {
+  finops_view_definitions = { for k, v in local._view_templates : k => {
+    friendly_name = v.friendly_name
+    query         = replace(v.query, "{source}", var.billing_export_table_id)
+  } }
+
+  _view_templates = {
     daily_cost = {
       friendly_name = "Daily Net Cost"
       query         = <<-EOT
@@ -220,24 +225,3 @@ locals {
     }
   }
 }
-
-# ------------------------------------------------------------------------------
-# 1. VIEWS (factory — one google_bigquery_table per view definition)
-# ------------------------------------------------------------------------------
-resource "google_bigquery_table" "views" {
-  for_each = var.billing_export_table_id != "" ? local.views : {}
-
-  project       = var.project_id
-  dataset_id    = var.dataset_id
-  table_id      = each.key
-  friendly_name = each.value.friendly_name
-
-  view {
-    query          = replace(each.value.query, "{source}", local.billing_export_source)
-    use_legacy_sql = false
-  }
-
-  deletion_protection = false
-}
-
-

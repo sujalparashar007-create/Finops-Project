@@ -1,6 +1,6 @@
-# test-finops-dataset — FinOps Integration & Validation Root Module
+﻿# 6-finops \u2014 FinOps Integration & Validation Root Module
 
-Orchestrates all FinOps sub-modules (BigQuery dataset, SQL views, billing budgets, Pub/Sub alerts, budget controls) and deploys a Cloud Function for email/Teams notifications. Also creates the monthly_kpi_summary view that joins daily cost data with budget targets.
+Orchestrates all FinOps sub-modules: foundation (IAM + APIs), BigQuery dataset with built-in view factory, billing budgets, Pub/Sub alerts, and a Cloud Function for Teams notifications. Also creates the monthly_kpi_summary view that joins daily cost data with budget targets.
 
 ## Prerequisites
 
@@ -16,27 +16,32 @@ Copy terraform.tfvars.example to terraform.tfvars, fill in your values, and run 
 
 See variables.tf for all inputs with types, defaults, and validation. Key variables:
 
-- project_id (required) — GCP project ID for all FinOps resources
-- billing_account_id (required) — GCP billing account ID
-- billing_export_table_id (required) — Fully qualified billing export table
-- region (default: us-east1) — GCP region
-- enable_alert_function (default: true) — Toggle email/Teams alerts
-- gmail_user / gmail_app_password / teams_webhook_url — Sensitive, set via .tfvars
+- project_id (required) \u2014 GCP project ID for all FinOps resources
+- billing_account_id (required) \u2014 GCP billing account ID
+- org_id (required) \u2014 Numeric GCP Organization ID
+- billing_export_table_id (required) \u2014 Fully qualified billing export table
+- region (default: us-east1) \u2014 GCP region
+- dataset_location (default: EU) \u2014 BigQuery dataset location
+- dataset_id (default: billing_export) \u2014 BigQuery dataset ID
+- enable_alert_function (default: true) \u2014 Toggle Teams alerts
+- budgets_yaml_path (default: budgets.yaml) \u2014 Budget definitions YAML file
+- teams_webhook_url \u2014 Sensitive, set via .tfvars
 
 ## Outputs
 
-- dataset_id — BigQuery dataset ID
-- project_id — GCP project ID
-- dataset_full_id — Fully qualified dataset reference
-- view_ids — Map of view name to fully qualified table ID
-- monthly_kpi_summary_id — Use in Looker Studio / Dashboard 1
+- dataset_id \u2014 BigQuery dataset ID
+- project_id \u2014 GCP project ID
+- dataset_full_id \u2014 Fully qualified dataset reference
+- view_ids \u2014 Map of view name to fully qualified table ID
+- monthly_kpi_summary_id \u2014 Use in Looker Studio / Dashboard 1
 
 ## Architecture
 
-Billing Export -> finops_dataset -> finops_views (6 SQL views)
-                              -> finops_budgets (budgets + budget view)
-                              -> finops_alerts (Pub/Sub + email channels)
-                              -> finops_budget_controls (scoped budgets)
-                              -> monthly_kpi_summary (KPI view)
+Billing Export -> finops_foundation (IAM + APIs)
+               -> finops_dataset (dataset + SQL views)
+               -> finops_alerts (Pub/Sub + notification channels)
+               -> finops_budgets (billing budgets)
+               -> finops_function (Cloud Function / Teams notifications)
 
-Budget threshold -> Pub/Sub -> Cloud Function -> Gmail + Teams
+Budget threshold -> Pub/Sub -> Cloud Function -> Teams
+

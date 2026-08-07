@@ -1,33 +1,15 @@
 import base64
 import json
 import os
-import smtplib
 import urllib.request
 import urllib.error
-from email.mime.text import MIMEText
 import functions_framework
 
-GMAIL_USER = os.environ.get("GMAIL_USER", "")
-GMAIL_PASS = os.environ.get("GMAIL_APP_PASSWORD", "")
 TEAMS_WEBHOOK = os.environ.get("TEAMS_WEBHOOK_URL", "")
-
-def send_email(subject, body):
-    if not GMAIL_USER or not GMAIL_PASS:
-        return
-    try:
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"] = GMAIL_USER
-        msg["To"] = GMAIL_USER
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(GMAIL_USER, GMAIL_PASS)
-            server.send_message(msg)
-        print(f"Email sent to {GMAIL_USER}")
-    except Exception as e:
-        print(f"Email failed: {e}")
 
 def send_teams(budget_name, threshold, cost, budget, currency):
     if not TEAMS_WEBHOOK:
+        print("Teams webhook not configured - skipping")
         return
     pct = float(threshold) * 100 if threshold != "N/A" else 0
     card = {
@@ -74,7 +56,5 @@ def process_budget_alert(cloud_event):
         print(f"Skipping notification - no threshold breach")
         return "OK"
 
-    send_email(f"FinOps Alert: {bn} - {co} {cu}",
-               f"Budget: {bn}\nSpend: {co}/{bu} {cu}\nThreshold: {th}\n\nhttps://console.cloud.google.com/billing")
     send_teams(bn, th, co, bu, cu)
     return "OK"

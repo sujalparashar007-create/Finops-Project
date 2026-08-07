@@ -1,6 +1,6 @@
 # Example: finops-function basic usage
 # Deploys a Cloud Function (2nd gen) triggered by Pub/Sub budget alerts.
-# Secrets (Gmail password, Teams webhook) stored in Secret Manager.
+# Secrets (e.g. Teams webhook) stored in Secret Manager.
 # Run: terraform init && terraform validate
 
 module "finops_function" {
@@ -13,11 +13,9 @@ module "finops_function" {
   function_source_dir = var.function_source_dir
   bucket_name         = var.bucket_name
 
-  service_account_email = var.service_account_email
+  existing_service_account_email = var.service_account_email
 
-  environment_variables = {
-    GMAIL_USER = "alerts@example.com"
-  }
+  environment_variables = {}
 
   secret_environment = var.secret_environment
 }

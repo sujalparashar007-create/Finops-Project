@@ -20,6 +20,11 @@ variable "activate_apis" {
   description = "List of GCP APIs to enable on the project (F13 — consolidated)"
   type        = list(string)
   default     = []
+
+  validation {
+    condition     = alltrue([for api in var.activate_apis : can(regex("^[a-z][a-z0-9]*\\.googleapis\\.com$", api))])
+    error_message = "Each activate_apis entry must be a valid GCP service name (e.g. pubsub.googleapis.com)."
+  }
 }
 
 variable "iam" {

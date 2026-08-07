@@ -16,12 +16,22 @@ variable "pubsub_topic_id" {
   description = "Full Pub/Sub topic ID from Module 3"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.pubsub_topic_id == "" || can(regex("^projects/[a-z][a-z0-9-]+/topics/.+$", var.pubsub_topic_id))
+    error_message = "pubsub_topic_id must be a full Pub/Sub topic ID (projects/PROJECT/topics/NAME) when non-empty."
+  }
 }
 
 variable "notification_channel_ids" {
   description = "Map of email → notification channel ID from Module 3 (finops-alerts output)"
   type        = map(string)
   default     = {}
+
+  validation {
+    condition     = alltrue([for email, _ in var.notification_channel_ids : can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", email))])
+    error_message = "Each key in notification_channel_ids must be a valid email address."
+  }
 }
 
 variable "budgets" {

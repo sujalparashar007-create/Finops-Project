@@ -129,13 +129,10 @@ module "finops_function" {
   runtime             = var.function_runtime
   enable_function     = var.enable_alert_function
 
-  environment_variables = {
-    GMAIL_USER = var.gmail_user
-  }
+  environment_variables = {}
 
   secret_environment = {
-    GMAIL_APP_PASSWORD = var.gmail_app_password
-    TEAMS_WEBHOOK_URL  = var.teams_webhook_url
+    TEAMS_WEBHOOK_URL = var.teams_webhook_url
   }
 
   depends_on = [

@@ -1,6 +1,6 @@
-# finops-function — Basic Example
+﻿# finops-function \u2014 Basic Example
 
-Minimal example that deploys a Cloud Function (2nd gen) with Secret Manager credentials.
+Minimal example that deploys a Cloud Function (2nd gen) with Secret Manager credentials for Teams notifications.
 ## Usage
 
 ```hcl
@@ -13,13 +13,8 @@ module "finops_function" {
 
   existing_service_account_email = "tf-executor@my-project.iam.gserviceaccount.com"
 
-  environment_variables = {
-    GMAIL_USER = "alerts@example.com"
-  }
-
   secret_environment = {
-    GMAIL_APP_PASSWORD = "your-app-password"
-    TEAMS_WEBHOOK_URL  = "https://your-webhook-url"
+    TEAMS_WEBHOOK_URL = "https://your-webhook-url"
   }
 }
 ```
@@ -39,9 +34,9 @@ terraform plan
 
 ## What it creates
 
-- `google_storage_bucket` — GCS bucket for function source code
-- `google_cloudfunctions2_function` — Cloud Function 2nd gen with Pub/Sub trigger
-- `google_secret_manager_secret` — Secrets for Gmail password and Teams webhook
+- `google_storage_bucket` \u2014 GCS bucket for function source code
+- `google_cloudfunctions2_function` \u2014 Cloud Function 2nd gen with Pub/Sub trigger
+- `google_secret_manager_secret` \u2014 Secrets for Teams webhook URL
 
 ## Inputs
 
@@ -62,3 +57,4 @@ terraform plan
 | `function_name` | Cloud Function name |
 | `function_uri` | Cloud Function trigger URI |
 | `bucket_name` | GCS bucket storing function source code |
+

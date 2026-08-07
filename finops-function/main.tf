@@ -63,12 +63,9 @@ resource "google_secret_manager_secret_iam_member" "accessor" {
   member    = "serviceAccount:${local.service_account_email}"
 }
 
-# Grant additional members (e.g. human users) access to read the secrets
+# Grant additional members (e.g. human users) access to read specific secrets
 resource "google_secret_manager_secret_iam_member" "additional_accessors" {
-  for_each = {
-    for pair in setproduct(keys(var.secret_environment), var.secret_accessors) :
-    "${pair[0]}/${pair[1]}" => { secret_key = pair[0], member = pair[1] }
-  }
+  for_each = { for entry in var.secret_accessors : "${entry.secret_key}/${entry.member}" => entry }
 
   secret_id = google_secret_manager_secret.secrets[each.value.secret_key].id
   role      = "roles/secretmanager.secretAccessor"

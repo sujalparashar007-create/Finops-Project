@@ -5,9 +5,13 @@ variable "project_id" {
 }
 
 variable "dataset_iam" {
-  description = "Dataset-level IAM bindings (role -> members)"
-  type        = map(list(string))
-  default = {
-    "roles/bigquery.dataViewer" = ["group:finops-team@example.com"]
-  }
+  description = "Dataset-level IAM bindings as list of role/member entries"
+  type = list(object({
+    role   = string
+    member = string
+  }))
+  default = [
+    { role = "roles/bigquery.dataViewer", member = "group:finops-team@example.com" },
+  ]
 }
+

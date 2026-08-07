@@ -16,12 +16,22 @@ variable "dataset_id" {
   description = "BigQuery dataset ID (must be unique within the project). Ignored when existing_dataset_id is set."
   type        = string
   default     = "billing_export"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9_]+$", var.dataset_id))
+    error_message = "dataset_id must be a valid BigQuery dataset ID (letters, digits, underscores)."
+  }
 }
 
 variable "existing_dataset_id" {
   description = "ID of an existing BigQuery dataset to use instead of creating one. When null (default), this module creates a new dataset."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.existing_dataset_id == null || can(regex("^[a-zA-Z0-9_]+$", var.existing_dataset_id))
+    error_message = "existing_dataset_id must be a valid BigQuery dataset ID when non-null."
+  }
 }
 
 variable "location" {
@@ -48,6 +58,15 @@ variable "iam" {
     member = string
   }))
   default = []
+
+  validation {
+    condition = alltrue([
+      for entry in var.iam :
+      can(regex("^roles/", entry.role)) &&
+      can(regex("^(user|group|serviceAccount|domain):.+", entry.member))
+    ])
+    error_message = "Each iam entry must have role starting with 'roles/' and member prefixed with user:, group:, serviceAccount:, or domain:."
+  }
 
   # Example:
   # [

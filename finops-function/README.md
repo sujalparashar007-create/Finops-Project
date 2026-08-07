@@ -1,7 +1,9 @@
-# finops-function
+﻿# finops-function
 
 Deploys a Cloud Function (2nd gen) triggered by Pub/Sub budget alerts.
-Secrets (Gmail app password, Teams webhook URL) are stored in Secret Manager.
+Sensitive values (e.g. Teams webhook URL) are stored in Secret Manager.
+The function processes budget threshold breaches and sends Adaptive Card
+notifications to Microsoft Teams.
 
 ## Usage
 
@@ -13,15 +15,10 @@ module "finops_function" {
   region          = "us-east1"
   pubsub_topic_id = module.finops_alerts.pubsub_topic_id
 
-  service_account_email = "tf-executor@my-project.iam.gserviceaccount.com"
-
-  environment_variables = {
-    GMAIL_USER = "alerts@example.com"
-  }
+  existing_service_account_email = "tf-executor@my-project.iam.gserviceaccount.com"
 
   secret_environment = {
-    GMAIL_APP_PASSWORD = var.gmail_app_password
-    TEAMS_WEBHOOK_URL  = var.teams_webhook_url
+    TEAMS_WEBHOOK_URL = var.teams_webhook_url
   }
 }
 ```
@@ -37,13 +34,15 @@ module "finops_function" {
 | `function_source_dir` | `string` | `"function-source"` | Path to source code directory |
 | `bucket_name` | `string` | `"finops-function-source"` | GCS bucket for source zip |
 | `runtime` | `string` | `"python311"` | Cloud Function runtime |
-| `service_account_email` | `string` | `""` | Runtime service account (defaults to tf-executor) |
+| `existing_service_account_email` | `string` | `null` | Runtime SA; null = module creates dedicated SA |
+| `runtime_sa_roles` | `list(string)` | `["roles/logging.logWriter"]` | IAM roles for the dedicated runtime SA |
 | `max_instance_count` | `number` | `1` | Maximum number of Cloud Function instances |
 | `available_memory` | `string` | `"256M"` | Memory allocated to the Cloud Function |
 | `timeout_seconds` | `number` | `60` | Cloud Function execution timeout in seconds |
-
-| `environment_variables` | `map(string)` | `{}` | Environment variables passed to the runtime (sensitive in Terraform) |
+| `environment_variables` | `map(string)` | `{}` | Env vars passed to the runtime (sensitive in Terraform) |
 | `secret_environment` | `map(string)` | `{}` | Secrets stored in Secret Manager and exposed to the function |
+| `existing_secret_ids` | `map(string)` | `{}` | Key ? existing secret ID; keys present here skip secret creation |
+| `secret_accessors` | `list(object({secret_key, member}))` | `[]` | Additional members granted secretAccessor on specific secrets |
 | `enable_function` | `bool` | `true` | Set to false to skip Cloud Function creation |
 
 ## Outputs
@@ -53,3 +52,4 @@ module "finops_function" {
 | `function_name` | Cloud Function name |
 | `function_uri` | Cloud Function trigger URI |
 | `bucket_name` | GCS bucket storing function source code |
+

@@ -1,0 +1,5 @@
+project_id: example-project
+display_name: "Example workload SA"
+roles:
+  - roles/logging.logWriter
+  - roles/secretmanager.secretAccessor

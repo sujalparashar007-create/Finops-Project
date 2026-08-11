@@ -4,8 +4,8 @@ Orchestrates all FinOps sub-modules: foundation (IAM + APIs), BigQuery dataset w
 
 ## Prerequisites
 
-1. Stage 0 bootstrap must be complete (seed project, TF service account, GCS state bucket).
-2. Manually grant the Terraform SA billing.admin on the billing account before first apply.
+1. Stage 0 bootstrap must be complete (seed project, TF service account, GCS state bucket) — run the `bootstrap/` root module, which composes `../projects` (project creation) + `../identities` (tf-executor SA) + bootstrap-specific grants.
+2. Manually grant the Terraform SA billing.admin on the billing account before first apply (the `bootstrap/` module grants this automatically for new projects; for existing deployments verify it already exists).
 3. Billing export to BigQuery must be enabled on the billing account.
 
 ## Usage

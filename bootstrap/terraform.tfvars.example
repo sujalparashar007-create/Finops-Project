@@ -1,0 +1,23 @@
+# ==============================================================================
+# ROOT MODULE: bootstrap — terraform.tfvars example
+# ==============================================================================
+# Copy to terraform.tfvars and fill in your real values.
+# ==============================================================================
+
+project_id          = "myco-finops-dev-abc123"
+billing_account_id  = "01A325-032DBC-FAB4E4"
+terraform_user      = "user:sujalparashar007@gmail.com"
+folder_id           = "123456789012"
+
+# --- Mandatory project labels ---
+project_label_team        = "finops"
+project_label_environment = "dev"
+project_label_cost_center = "12345"
+project_label_app         = "finops"
+project_label_owner       = "john.doe"
+project_label_location    = "us"
+
+# --- Optional (shown with defaults) ---
+# terraform_sa_name         = "tf-executor"
+# terraform_sa_display_name = "Terraform Executor SA"
+# activate_apis             = ["cloudresourcemanager.googleapis.com", ...]

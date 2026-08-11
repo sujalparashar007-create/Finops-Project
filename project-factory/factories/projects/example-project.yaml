@@ -1,0 +1,16 @@
+project_id: example-project
+folder_id: "123456789"
+activate_apis:
+  - cloudfunctions.googleapis.com
+labels:
+  team: example
+  environment: dev
+  cost_center: "00000"
+  app: example-app
+  owner: example@example.com
+  location: us
+
+iam_bindings_additive:
+  viewer:
+    member: "group:gcp-viewers@example.com"
+    role: "roles/viewer"

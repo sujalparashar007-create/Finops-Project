@@ -96,3 +96,21 @@ variable "activate_apis" {
     "cloudbilling.googleapis.com",
   ]
 }
+
+variable "org_iam_roles" {
+  description = "List of org-level IAM roles to grant to the tf-executor service account (e.g., roles/resourcemanager.projectCreator)"
+  type        = list(string)
+  default     = []
+}
+
+variable "billing_user" {
+  description = "If true, grant roles/billing.user on the billing account to the tf-executor SA"
+  type        = bool
+  default     = false
+}
+
+variable "terraform_operators" {
+  description = "List of human user emails allowed to impersonate the tf-executor SA (must be prefixed with 'user:')"
+  type        = list(string)
+  default     = []
+}

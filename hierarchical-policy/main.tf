@@ -99,3 +99,15 @@ resource "google_compute_firewall" "vpc_rules" {
 
   description = each.value.description
 }
+
+# ==============================================================================
+# ORG-LEVEL IAM BINDINGS (only when scope = organization)
+# ==============================================================================
+
+resource "google_organization_iam_member" "org_bindings" {
+  for_each = local.is_hierarchical ? var.org_iam_bindings : {}
+
+  org_id = var.org_id
+  role   = each.value.role
+  member = each.value.member
+}

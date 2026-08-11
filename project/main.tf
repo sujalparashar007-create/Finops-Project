@@ -64,6 +64,38 @@ resource "google_billing_account_iam_member" "terraform_sa_billing_admin" {
 }
 
 # ------------------------------------------------------------------------------
+# 5a. BILLING ACCOUNT IAM — optional billing.user for project creation/linking
+# ------------------------------------------------------------------------------
+resource "google_billing_account_iam_member" "terraform_sa_billing_user" {
+  count              = var.billing_user ? 1 : 0
+  billing_account_id = var.billing_account_id
+  role               = "roles/billing.user"
+  member             = "serviceAccount:${google_service_account.terraform.email}"
+}
+
+# ------------------------------------------------------------------------------
+# 5b. ORG-LEVEL IAM — grant tf-executor org-wide roles (project/folder creation, networking, etc.)
+# ------------------------------------------------------------------------------
+resource "google_organization_iam_member" "terraform_sa_org_roles" {
+  for_each = toset(var.org_iam_roles)
+
+  org_id = var.org_id != "" ? var.org_id : null
+  role   = each.key
+  member = "serviceAccount:${google_service_account.terraform.email}"
+}
+
+# ------------------------------------------------------------------------------
+# 5c. OPERATOR IMPERSONATION — allow human operators to act as tf-executor
+# ------------------------------------------------------------------------------
+resource "google_service_account_iam_member" "terraform_operators" {
+  for_each = toset(var.terraform_operators)
+
+  service_account_id = google_service_account.terraform.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = each.key
+}
+
+# ------------------------------------------------------------------------------
 # 6. ACT-AS PERMISSIONS — allow tf-executor to deploy Cloud Functions
 #    Cloud Functions require the deploying SA to act as the App Engine and
 #    Compute Engine default service accounts at deploy time.

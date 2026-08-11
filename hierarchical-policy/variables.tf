@@ -96,3 +96,12 @@ variable "rules" {
     error_message = "Each rule must have action = 'allow' or 'deny', direction = 'INGRESS' or 'EGRESS', and priority > 0."
   }
 }
+
+variable "org_iam_bindings" {
+  description = "Map of org-level IAM bindings (role → member). Only applies when scope = organization."
+  type = map(object({
+    role   = string
+    member = string
+  }))
+  default = {}
+}

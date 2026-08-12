@@ -18,6 +18,17 @@
 # ------------------------------------------------------------------------------
 # 1. GCP PROJECT — via the landing-zone projects module
 # ------------------------------------------------------------------------------
+module "bootstrap_folder" {
+  source = "../folder"
+
+  folders = {
+    bootstrap-finops = {
+      parent = "organizations/563019909339"
+      tags   = {}
+    }
+  }
+}
+
 module "projects" {
   source = "../projects"
 
@@ -25,7 +36,7 @@ module "projects" {
 
   projects = {
     (var.project_id) = {
-      folder_id     = var.folder_id
+      folder_id     = var.folder_id != "" ? var.folder_id : module.bootstrap_folder.folder_ids["bootstrap-finops"]
       activate_apis = var.activate_apis
       labels = {
         team        = var.project_label_team
@@ -37,6 +48,8 @@ module "projects" {
       }
     }
   }
+
+  depends_on = [module.bootstrap_folder]
 }
 
 # ------------------------------------------------------------------------------

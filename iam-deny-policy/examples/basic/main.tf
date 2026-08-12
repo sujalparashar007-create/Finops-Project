@@ -20,13 +20,13 @@ provider "google" {
 module "deny_public_access" {
   source = "../../"
 
-  scope     = "projects"
-  target_id = var.project_id
+  scope       = "projects"
+  target_id   = var.project_id
   policy_name = "deny-public-access"
 
   deny_rules = [{
     denied_principals  = ["principalSet://goog/public:all"]
     denied_permissions = ["*"]
-    reason = "Block all public access to this project by default."
+    reason             = "Block all public access to this project by default."
   }]
 }

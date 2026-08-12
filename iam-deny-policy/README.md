@@ -8,6 +8,12 @@ and cannot subtract a higher-level grant. `google_iam_deny_policy` expresses
 > Two different teams calling this module against the same `target_id` MUST
 > use different `policy_name` values or they will silently overwrite each
 > other's rules.
+>
+> **Note:** `target_id` must be the **numeric** folder/org ID (not its display
+> name) when `scope = "folders"` or `scope = "organizations"` — folders and
+> orgs have no string alias the way a project has a `project_id`. Passing a
+> display name here will attach the policy to the wrong resource or fail
+> outright. Only `scope = "projects"` accepts a string `project_id`.
 
 ## Usage
 
@@ -45,7 +51,18 @@ module "isolated_folder_deny" {
 | `denied_principals` | `list(string)` | (required) | Principals to deny |
 | `denied_permissions` | `list(string)` | (required) | Permissions/roles to deny |
 | `exception_principals` | `list(string)` | `[]` | Explicitly exempted principals |
+| `exception_permissions` | `list(string)` | `[]` | Explicitly exempted permissions |
+| `denial_condition` | `object` | `null` | Optional CEL condition gating the deny rule (see below) |
 | `reason` | `string` | (required) | Why this deny rule exists |
+
+#### `denial_condition` object schema
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `title` | `string` | (required) | Short name for the condition |
+| `expression` | `string` | (required) | CEL expression evaluating to a boolean |
+| `description` | `string` | `""` | Human-readable purpose of the condition |
+| `location` | `string` | `""` | Optional location string for the condition |
 
 ## Outputs
 

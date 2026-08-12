@@ -1,6 +1,6 @@
 # iam/examples/basic — Standalone Project IAM
 
-Applies the `iam` module to grant additive project-level IAM bindings.
+Applies the `iam` module (additive-only) to grant project-level IAM bindings. It ships with an empty `iam_bindings_additive = {}`, so by default `terraform apply` is a zero-impact smoke test; uncomment the sample binding in `main.tf` to create a real grant.
 
 ## Usage
 
@@ -32,3 +32,4 @@ terraform apply
 
 - The caller must already have `roles/resourcemanager.projectIamAdmin` on the target project.
 - Bindings are additive (`google_project_iam_member`) and safe alongside other automation.
+- Ships with `iam_bindings_additive = {}` so `terraform apply` is a no-op by default. Delete the `{}` and uncomment the sample grant in `main.tf` to actually create an IAM binding.

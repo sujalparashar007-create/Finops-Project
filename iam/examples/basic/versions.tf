@@ -8,7 +8,3 @@ terraform {
     }
   }
 }
-
-provider "google" {
-  # Apply with your own gcloud ADC credentials.
-}

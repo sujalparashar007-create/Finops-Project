@@ -12,9 +12,21 @@ accepts authoritative `iam` / `iam_bindings` inputs, and therefore **never
 removes or overwrites** IAM permissions owned by other modules, teams, or
 existing configurations.
 
+## Removed (previously authoritative)
+
+The following inputs were removed in the additive-only refactor and must no
+longer be passed:
+
+- `iam` (`map(list(string))`) — the authoritative role → members input.
+- `iam_bindings` (`map(object)`) — the authoritative condition-aware bindings input.
+
+IAM is now managed **only** via `iam_bindings_additive` (as `google_*_iam_member`).
+This guarantees the module never removes or overwrites IAM granted by other
+modules, teams, or existing configurations.
+
 ## Why a standalone module
 
-Management decision: IAM bindings are broken out into their own module so
+IAM bindings are broken out into their own module so
 callers explicitly sequence IAM after the target resource exists. This means
 two module calls / two diffs per binding target instead of one, but it keeps
 IAM logic centralized and consistent.

@@ -7,17 +7,29 @@
 # ==============================================================================
 
 resource "google_iam_deny_policy" "this" {
-  parent       = "${var.scope}/${var.target_id}"
+  parent       = urlencode("cloudresourcemanager.googleapis.com/${var.scope}/${var.target_id}")
   name         = "deny-${var.policy_name}"
   display_name = "Deny policy: ${var.policy_name} (${var.target_id})"
 
-  rules {
-    dynamic "deny_rule" {
-      for_each = var.deny_rules
-      content {
-        denied_principals    = deny_rule.value.denied_principals
-        denied_permissions   = deny_rule.value.denied_permissions
-        exception_principals = deny_rule.value.exception_principals
+  dynamic "rules" {
+    for_each = var.deny_rules
+    content {
+      description = rules.value.reason
+      deny_rule {
+        denied_principals     = rules.value.denied_principals
+        denied_permissions    = rules.value.denied_permissions
+        exception_principals  = rules.value.exception_principals
+        exception_permissions = rules.value.exception_permissions
+
+        dynamic "denial_condition" {
+          for_each = rules.value.denial_condition != null ? [rules.value.denial_condition] : []
+          content {
+            title       = denial_condition.value.title
+            expression  = denial_condition.value.expression
+            description = denial_condition.value.description
+            location    = denial_condition.value.location
+          }
+        }
       }
     }
   }

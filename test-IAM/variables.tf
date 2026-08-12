@@ -35,8 +35,9 @@ variable "terraform_user" {
 }
 
 variable "folder_id" {
-  description = "GCP Folder ID (numeric)."
+  description = "GCP Folder ID (numeric). If empty, a bootstrap folder will be created."
   type        = string
+  default     = ""
 }
 
 # --- OPTIONAL ---

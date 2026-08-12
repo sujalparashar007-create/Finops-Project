@@ -13,8 +13,13 @@ variable "scope" {
 }
 
 variable "target_id" {
-  description = "The org/folder/project ID the deny policy attaches to"
+  description = "The org/folder/project ID the deny policy attaches to. For scope = folders/organizations this MUST be the numeric ID (e.g. \"123456789012\") — folders and orgs have no string alias the way a project has project_id. For scope = projects, the project_id string is correct."
   type        = string
+
+  validation {
+    condition     = var.scope == "projects" || can(regex("^[0-9]+$", var.target_id))
+    error_message = "target_id must be numeric when scope is 'folders' or 'organizations' (use the folder/org number, not its display name)."
+  }
 }
 
 variable "policy_name" {
@@ -36,12 +41,19 @@ variable "policy_name" {
 }
 
 variable "deny_rules" {
-  description = "Flat list of deny rules: denied permissions/roles for a set of principals, with optional exceptions."
+  description = "Flat list of deny rules: denied permissions/roles for a set of principals, with optional exceptions and an optional CEL condition."
   type = list(object({
-    denied_principals  = list(string)
-    denied_permissions = list(string)
-    exception_principals = optional(list(string), [])
-    reason             = string
+    denied_principals     = list(string)
+    denied_permissions    = list(string)
+    exception_principals  = optional(list(string), [])
+    exception_permissions = optional(list(string), [])
+    denial_condition = optional(object({
+      title       = string
+      expression  = string
+      description = optional(string, "")
+      location    = optional(string, "")
+    }), null)
+    reason = string
   }))
 
   validation {

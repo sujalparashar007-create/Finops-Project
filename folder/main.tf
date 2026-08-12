@@ -15,14 +15,12 @@ resource "google_folder" "this" {
 # Bind pre-existing tag values to each folder resource.
 locals {
   folder_tags_flat = merge([
-    for folder_name, cfg in var.folders : [
-      for tag_key, tag_value in cfg.tags : {
-        "${folder_name}::${tag_key}" => {
-          folder_name = folder_name
-          tag_value   = tag_value
-        }
+    for folder_name, cfg in var.folders : {
+      for tag_key, tag_value in cfg.tags : "${folder_name}::${tag_key}" => {
+        folder_name = folder_name
+        tag_value   = tag_value
       }
-    ]
+    }
   ]...)
 }
 

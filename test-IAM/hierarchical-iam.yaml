@@ -1,0 +1,27 @@
+# ==============================================================================
+# Bootstrap Factory — FinOps Folder + Hierarchical IAM Configuration
+# ==============================================================================
+# Consolidated from the former `hierarchical-iam-factory` module.
+#   folders:           folders to create (key = folder display name)
+#   hierarchical_iam:  folder-level additive IAM, keyed by folder display name
+# Edit this file and re-run bootstrap to change what gets created — no
+# Terraform code changes needed.
+# ==============================================================================
+
+folders: {}
+hierarchical_iam: {}
+# By default no FinOps folders are created during bootstrap. Populate the
+# commented example below with your real org-level folder data to provision
+# FinOps folders (and folder-level IAM) as part of bootstrap, then re-run.
+# Folder creation requires roles/resourcemanager.folderCreator on the org.
+# Example:
+# folders:
+#   Production:
+#     parent: "organizations/123456789012"
+#     tags: {}
+# hierarchical_iam:
+#   Production:
+#     bindings:
+#       prod_viewer:
+#         member: "group:gcp-prod-viewers@example.com"
+#         role: "roles/viewer"

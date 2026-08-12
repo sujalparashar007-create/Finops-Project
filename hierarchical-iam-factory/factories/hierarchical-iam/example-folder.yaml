@@ -1,5 +1,0 @@
-folder_name: Production
-bindings:
-  prod_viewer:
-    member: "group:gcp-prod-viewers@example.com"
-    role: "roles/viewer"

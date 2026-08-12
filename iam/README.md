@@ -1,8 +1,16 @@
 # iam — Standalone Hierarchical IAM
 
-Grants IAM bindings at organization, folder, or project scope using a single
-parameterized module. This replaces the per-module `iam.tf` topic files that
-previously lived inside `organization`, `folder`, and `project`.
+Grants **additive** IAM member bindings at organization, folder, or project
+scope using a single parameterized module. This replaces the per-module `iam.tf`
+topic files that previously lived inside `organization`, `folder`, and `project`.
+
+## Additive-only
+
+This module creates only `google_*_iam_member` resources (for organization,
+folder, and project scope). It never creates `google_*_iam_binding`, never
+accepts authoritative `iam` / `iam_bindings` inputs, and therefore **never
+removes or overwrites** IAM permissions owned by other modules, teams, or
+existing configurations.
 
 ## Why a standalone module
 
@@ -36,9 +44,7 @@ module "project_iam" {
 |------|------|---------|-------------|
 | `scope` | `string` | (required) | `organization`, `folder`, or `project` |
 | `resource_id` | `string` | (required) | The org/folder/project ID matching `scope` |
-| `iam_bindings_additive` | `map(object)` | `{}` | Additive member grants (safe alongside other automation) |
-| `iam` | `map(list(string))` | `{}` | Authoritative role → members map |
-| `iam_bindings` | `map(object)` | `{}` | Authoritative condition-aware bindings |
+| `iam_bindings_additive` | `map(object)` | `{}` | Additive member grants (safe alongside other automation; never replaces a role's full membership) |
 | `enable_conditional_bindings` | `bool` | `false` | Render `condition` blocks when entries include one |
 
 ## Outputs

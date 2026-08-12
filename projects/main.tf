@@ -18,14 +18,12 @@ resource "google_project" "this" {
 
 locals {
   project_apis_flat = merge([
-    for project_id, p in var.projects : [
-      for api in p.activate_apis : {
-        "${project_id}::${api}" = {
-          project_id = project_id
-          api        = api
-        }
+    for project_id, p in var.projects : {
+      for api in p.activate_apis : "${project_id}::${api}" => {
+        project_id = project_id
+        api        = api
       }
-    ]
+    }
   ]...)
 }
 

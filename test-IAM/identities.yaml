@@ -1,0 +1,21 @@
+# ==============================================================================
+# Bootstrap Factory — FinOps Service Account Configuration
+# ==============================================================================
+# Consolidated from the former `identities-factory` module. One entry per
+# FinOps service account under `service_accounts:`. The map key is the SA
+# account_id. Edit this file and re-run bootstrap to change what gets created
+# — no Terraform code changes needed.
+# ==============================================================================
+
+service_accounts: {}
+# By default no FinOps service accounts are created during bootstrap. Replace
+# the commented example below with your real values to provision FinOps SAs
+# (and their project-level roles) as part of bootstrap. Re-run bootstrap after
+# editing — no Terraform code changes needed.
+# Example:
+#   example-sa:
+#     project_id: example-project
+#     display_name: "Example workload SA"
+#     roles:
+#       - roles/logging.logWriter
+#       - roles/secretmanager.secretAccessor

@@ -1,14 +1,18 @@
 # ==============================================================================
 # MODULE: iam — Standalone Hierarchical IAM
 # ==============================================================================
-# Grants IAM bindings at organization, folder, or project scope using a
-# single parameterized module instead of duplicating logic across each
-# resource module.
+# Grants ADDITIVE IAM member bindings at organization, folder, or project
+# scope using a single parameterized module instead of duplicating logic
+# across each resource module.
+#
+# This module is additive-only: it creates `google_*_iam_member` resources
+# (never `google_*_iam_binding`), so it never replaces a role's full
+# membership and is safe to run alongside IAM changes made elsewhere.
 #
 # Scope rules:
-#   - scope = "organization" -> google_organization_iam_*
-#   - scope = "folder"       -> google_folder_iam_*
-#   - scope = "project"      -> google_project_iam_*
+#   - scope = "organization" -> google_organization_iam_member
+#   - scope = "folder"       -> google_folder_iam_member
+#   - scope = "project"      -> google_project_iam_member
 # ==============================================================================
 
 locals {
@@ -72,85 +76,5 @@ resource "google_project_iam_member" "additive" {
 }
 
 # ------------------------------------------------------------------------------
-# 2. AUTHORITATIVE IAM BINDINGS (google_*_iam_binding) — var.iam
-# ------------------------------------------------------------------------------
-resource "google_organization_iam_binding" "authoritative" {
-  for_each = local.is_org ? var.iam : {}
-
-  org_id  = var.resource_id
-  role    = each.key
-  members = each.value
-}
-
-resource "google_folder_iam_binding" "authoritative" {
-  for_each = local.is_folder ? var.iam : {}
-
-  folder  = var.resource_id
-  role    = each.key
-  members = each.value
-}
-
-resource "google_project_iam_binding" "authoritative" {
-  for_each = local.is_project ? var.iam : {}
-
-  project = var.resource_id
-  role    = each.key
-  members = each.value
-}
-
-# ------------------------------------------------------------------------------
-# 3. AUTHORITATIVE CONDITION-AWARE BINDINGS — var.iam_bindings
-# ------------------------------------------------------------------------------
-resource "google_organization_iam_binding" "conditional" {
-  for_each = local.is_org ? var.iam_bindings : {}
-
-  org_id = var.resource_id
-  role   = each.value.role
-
-  members = each.value.members
-
-  dynamic "condition" {
-    for_each = each.value.condition != null ? [each.value.condition] : []
-    content {
-      title       = condition.value.title
-      description = condition.value.description
-      expression  = condition.value.expression
-    }
-  }
-}
-
-resource "google_folder_iam_binding" "conditional" {
-  for_each = local.is_folder ? var.iam_bindings : {}
-
-  folder  = var.resource_id
-  role    = each.value.role
-
-  members = each.value.members
-
-  dynamic "condition" {
-    for_each = each.value.condition != null ? [each.value.condition] : []
-    content {
-      title       = condition.value.title
-      description = condition.value.description
-      expression  = condition.value.expression
-    }
-  }
-}
-
-resource "google_project_iam_binding" "conditional" {
-  for_each = local.is_project ? var.iam_bindings : {}
-
-  project = var.resource_id
-  role    = each.value.role
-
-  members = each.value.members
-
-  dynamic "condition" {
-    for_each = each.value.condition != null ? [each.value.condition] : []
-    content {
-      title       = condition.value.title
-      description = condition.value.description
-      expression  = condition.value.expression
-    }
-  }
-}
+# END: authoritative bindings intentionally omitted — this module is
+# additive-only (creates google_*_iam_member for org/folder/project).

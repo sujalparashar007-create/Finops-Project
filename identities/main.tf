@@ -14,15 +14,13 @@ resource "google_service_account" "sa" {
 
 locals {
   sa_role_grants = merge([
-    for sa_key, sa in var.service_accounts : [
-      for role in sa.roles : {
-        "${sa_key}::${role}" = {
-          sa_key     = sa_key
-          role       = role
-          project_id = sa.project_id
-        }
+    for sa_key, sa in var.service_accounts : {
+      for role in sa.roles : "${sa_key}::${role}" => {
+        sa_key     = sa_key
+        role       = role
+        project_id = sa.project_id
       }
-    ]
+    }
   ]...)
 }
 

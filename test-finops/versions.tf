@@ -14,6 +14,6 @@ terraform {
 
   backend "gcs" {
     bucket = "finops-foundation-test-tfstate"
-    prefix = "6-finops"
+    prefix = "test-finops"
   }
 }

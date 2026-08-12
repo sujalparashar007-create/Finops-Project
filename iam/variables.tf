@@ -19,9 +19,11 @@ variable "resource_id" {
 
 variable "iam_bindings_additive" {
   description = <<-EOT
-    Additive IAM grants — one member + role per entry, safe alongside bindings
-    made elsewhere. This is the default choice; use `iam` or `iam_bindings` only
-    when this module call should fully own a role's membership.
+    Additive IAM grants — one member + role per entry. This module is
+    additive-only: it creates `google_*_iam_member` resources and never
+    replaces a role's full membership, so it is safe to run alongside IAM
+    changes made by other modules or teams. Each entry may carry an optional
+    `condition` (rendered when `enable_conditional_bindings` is true).
   EOT
   type = map(object({
     member = string
@@ -44,28 +46,8 @@ variable "iam_bindings_additive" {
   }
 }
 
-variable "iam" {
-  description = "Authoritative role -> members map. Only set a role here if this module call should fully own that role's membership (removes anything not listed)."
-  type        = map(list(string))
-  default     = {}
-}
-
-variable "iam_bindings" {
-  description = "Authoritative, condition-aware bindings. Rare — prefer iam_bindings_additive unless a time-boxed authoritative grant is genuinely required."
-  type = map(object({
-    role    = string
-    members = list(string)
-    condition = optional(object({
-      title       = string
-      description = optional(string, "")
-      expression  = string
-    }), null)
-  }))
-  default = {}
-}
-
 variable "enable_conditional_bindings" {
-  description = "Master switch for IAM Conditions support on iam_bindings_additive/iam_bindings entries. Off by default — keeps the common unconditional case free of extra plan noise."
-  type    = bool
-  default = false
+  description = "Master switch for IAM Conditions support on iam_bindings_additive entries. Off by default — keeps the common unconditional case free of extra plan noise."
+  type        = bool
+  default     = false
 }

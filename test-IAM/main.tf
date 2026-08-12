@@ -85,3 +85,68 @@ resource "google_service_account_iam_member" "tf_executor_act_as_self" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${module.identities.emails[var.terraform_sa_name]}"
 }
+
+# ------------------------------------------------------------------------------
+# 6. FACTORY (consolidated) — YAML-driven FinOps resources
+#    Previously three separate factory modules (project-factory,
+#    identities-factory, hierarchical-iam-factory). Their functionality now
+#    lives here and is read directly from top-level YAML files in this module,
+#    created as part of the bootstrap deployment:
+#      projects.yaml          -> FinOps projects + project-level IAM
+#      identities.yaml        -> FinOps service accounts + roles
+#      hierarchical-iam.yaml  -> FinOps folders + folder-level IAM
+# ------------------------------------------------------------------------------
+locals {
+  factory_projects   = try(yamldecode(file("${path.module}/projects.yaml")).projects, {})
+  factory_identities = try(yamldecode(file("${path.module}/identities.yaml")).service_accounts, {})
+  factory_hier_iam   = try(yamldecode(file("${path.module}/hierarchical-iam.yaml")), {})
+}
+
+# --- 6a. YAML-driven FinOps projects (was project-factory) --------------------
+module "factory_projects" {
+  source = "../projects"
+
+  billing_account_id = var.billing_account_id
+
+  projects = {
+    for pid, p in local.factory_projects : pid => {
+      folder_id     = p.folder_id
+      activate_apis = try(p.activate_apis, [])
+      labels        = p.labels
+    }
+  }
+}
+
+module "factory_project_iam" {
+  source   = "../iam"
+  for_each = local.factory_projects
+
+  scope                 = "project"
+  resource_id           = module.factory_projects.project_ids[each.key]
+  iam_bindings_additive = try(each.value.iam_bindings_additive, {})
+
+  depends_on = [module.factory_projects]
+}
+
+# --- 6b. YAML-driven FinOps service accounts (was identities-factory) ---------
+module "factory_identities" {
+  source           = "../identities"
+  service_accounts = local.factory_identities
+}
+
+# --- 6c. YAML-driven FinOps folders + folder IAM (was hierarchical-iam-factory)
+module "factory_folders" {
+  source  = "../folder"
+  folders = try(local.factory_hier_iam.folders, {})
+}
+
+module "factory_folder_iam" {
+  source   = "../iam"
+  for_each = { for k, v in local.factory_hier_iam.hierarchical_iam : k => v.bindings }
+
+  scope                 = "folder"
+  resource_id           = module.factory_folders.folder_ids[each.key]
+  iam_bindings_additive = each.value
+
+  depends_on = [module.factory_folders]
+}

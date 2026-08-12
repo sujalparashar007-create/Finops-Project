@@ -14,7 +14,7 @@ project_label_team        = "finops"
 project_label_environment = "dev"
 project_label_cost_center = "12345"
 project_label_app         = "finops"
-project_label_owner       = "john.doe"
+project_label_owner       = "owner-finops"
 project_label_location    = "us"
 
 # --- Optional (shown with defaults) ---

@@ -1,0 +1,33 @@
+# ==============================================================================
+# Bootstrap Factory — FinOps Project Configuration
+# ==============================================================================
+# Consolidated from the former `project-factory` module. One entry per FinOps
+# project under `projects:`. The map key is the GCP project_id. Project-level
+# additive IAM goes under `iam_bindings_additive`. Edit this file and re-run
+# bootstrap to change what gets created — no Terraform code changes needed.
+# ==============================================================================
+
+# By default no FinOps projects are created during bootstrap. Replace the
+# commented example below with your real values to provision FinOps projects
+# (and their project-level IAM) as part of bootstrap. Re-run bootstrap after
+# editing — no Terraform code changes needed.
+#
+# Example:
+# projects:
+#   finops-workload:
+#     folder_id: "123456789"
+#     activate_apis:
+#       - cloudfunctions.googleapis.com
+#     labels:
+#       team: finops
+#       environment: dev
+#       cost_center: "00000"
+#       app: finops-workload
+#       owner: finops-owner
+#       location: us
+#     iam_bindings_additive:
+#       viewer:
+#         member: "group:gcp-viewers@example.com"
+#         role: "roles/viewer"
+
+projects: {}

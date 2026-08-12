@@ -1,11 +1,11 @@
-﻿# 6-finops \u2014 FinOps Integration & Validation Root Module
+﻿# test-finops \u2014 FinOps Integration & Validation Root Module
 
 Orchestrates all FinOps sub-modules: foundation (IAM + APIs), BigQuery dataset with built-in view factory, billing budgets, Pub/Sub alerts, and a Cloud Function for Teams notifications. Also creates the monthly_kpi_summary view that joins daily cost data with budget targets.
 
 ## Prerequisites
 
-1. Stage 0 bootstrap must be complete (seed project, TF service account, GCS state bucket) — run the `bootstrap/` root module, which composes `../projects` (project creation) + `../identities` (tf-executor SA) + bootstrap-specific grants.
-2. Manually grant the Terraform SA billing.admin on the billing account before first apply (the `bootstrap/` module grants this automatically for new projects; for existing deployments verify it already exists).
+1. Stage 0 bootstrap must be complete (seed project, TF service account, GCS state bucket) — run the `test-IAM/` root module, which composes `../projects` (project creation) + `../identities` (tf-executor SA) + bootstrap-specific grants.
+2. Manually grant the Terraform SA billing.admin on the billing account before first apply (the `test-IAM/` module grants this automatically for new projects; for existing deployments verify it already exists).
 3. Billing export to BigQuery must be enabled on the billing account.
 
 ## Usage

@@ -38,7 +38,7 @@ variable "spokes" {
   description = "Map of spoke VPCs to create. Key = logical spoke name, value = { project_id, env_name, spoke_cidr, subnet_cidr, ... }"
   type = map(object({
     project_id                   = string
-    region                       = optional(string, "")
+    region                       = optional(string)
     env_name                     = string
     spoke_cidr                   = string
     subnet_cidr                  = string

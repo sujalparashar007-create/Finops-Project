@@ -37,3 +37,21 @@ module "hub_spoke" {
   }
 }
 ```
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|----------|
+| hub_project_id | GCP project ID for the hub | string | example-network | no |
+| region | GCP region | string | us-central1 | no |
+| domain | Logical domain / environment name | string | example | no |
+| connectivity_type | ncc or peering | string | peering | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| hub_vpc_self_link | Self-link of the hub VPC |
+| spoke_vpc_self_links | Map of spoke name to VPC self-link |
+| ncc_hub_id | NCC hub ID (empty when peering) |
+| firewall_rule_ids | Map of firewall rule key to ID on the hub VPC |

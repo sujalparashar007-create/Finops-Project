@@ -21,7 +21,7 @@ module "spoke" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
-| project_id | GCP project ID | string | n/a | yes |
+| project_id | GCP project ID | string | example-spoke-project | no |
 | region | GCP region | string | us-central1 | no |
 | env_name | Environment name | string | dev | no |
 | spoke_cidr | Spoke CIDR | string | 10.16.0.0/16 | no |
@@ -33,4 +33,6 @@ module "spoke" {
 | Name | Description |
 |------|-------------|
 | vpc_id | ID of the created spoke VPC |
+| vpc_self_link | Self-link of the spoke VPC |
+| subnet_self_link | Self-link of the spoke subnet |
 | subnet_cidr | CIDR of the created spoke subnet |

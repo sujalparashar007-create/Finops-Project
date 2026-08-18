@@ -32,8 +32,8 @@ module "firewall" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
-| project_id | GCP project ID | string | n/a | yes |
-| vpc_self_link | Self-link of the VPC network | string | n/a | yes |
+| project_id | GCP project ID | string | example-project | no |
+| vpc_self_link | Self-link of the VPC network | string | projects/example-project/global/networks/my-vpc | no |
 
 ## Outputs
 

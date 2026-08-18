@@ -1,6 +1,7 @@
 variable "hub_project_id" {
   description = "GCP project ID for the hub"
   type        = string
+  default     = "example-network"
 }
 
 variable "region" {
@@ -12,7 +13,7 @@ variable "region" {
 variable "domain" {
   description = "Logical domain / environment name"
   type        = string
-  default     = "prod"
+  default     = "example"
 }
 
 variable "connectivity_type" {

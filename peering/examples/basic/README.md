@@ -21,9 +21,9 @@ module "peering" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
-| hub_vpc_self_link | Self-link of the hub VPC | string | n/a | yes |
-| spoke_vpc_self_link | Self-link of the spoke VPC | string | n/a | yes |
-| env_name | Environment name for naming the peering | string | n/a | yes |
+| hub_vpc_self_link | Self-link of the hub VPC | string | projects/example-hub-project/global/networks/hub-vpc | no |
+| spoke_vpc_self_link | Self-link of the spoke VPC | string | projects/example-spoke-project/global/networks/spoke-vpc | no |
+| env_name | Environment name for naming the peering | string | dev | no |
 | export_custom_routes | Export custom routes from this side | bool | false | no |
 | import_custom_routes | Import custom routes to this side | bool | false | no |
 

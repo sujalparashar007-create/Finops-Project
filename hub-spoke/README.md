@@ -24,14 +24,14 @@ Choose connectivity via `connectivity_type`:
 module "hub_spoke" {
   source = "../hub-spoke"
 
-  hub_project_id    = "foundation-network"
+  hub_project_id    = "example-network"
   region            = "us-central1"
   domain            = "prod"
   connectivity_type = "peering"
 
   spokes = {
     dev = {
-      project_id  = "foundation-development"
+      project_id  = "example-development"
       env_name    = "dev"
       spoke_cidr  = "10.16.0.0/16"
       subnet_cidr = "10.16.0.0/24"

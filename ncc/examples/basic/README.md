@@ -34,7 +34,7 @@ module "ncc" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
-| hub_project_id | GCP project ID | string | n/a | yes |
+| hub_project_id | GCP project ID | string | example-hub-project | no |
 | region | GCP region | string | us-central1 | no |
 | hub_name | NCC hub name | string | ncc-hub | no |
 | vpc_spokes | Map of spoke name to project_id and vpc_self_link | map(object) | {} | no |

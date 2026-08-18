@@ -19,11 +19,14 @@ module "hub" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|----------|
-| project_id | GCP project ID | string | n/a | yes |
+| project_id | GCP project ID | string | example-hub-project | no |
 | region | GCP region | string | us-central1 | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| vpc_id | ID of the created hub VPC | "
+| vpc_id | ID of the created hub VPC |
+| vpc_self_link | Self-link of the hub VPC |
+| subnet_self_link | Self-link of the hub subnet |
+| router_self_link | Self-link of the Cloud Router | "

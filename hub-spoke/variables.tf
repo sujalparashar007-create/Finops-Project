@@ -49,6 +49,26 @@ variable "spokes" {
     svc_cidr                     = optional(string, "")
     peering_export_custom_routes = optional(bool, false)
     peering_import_custom_routes = optional(bool, false)
+    firewall_rules = optional(map(object({
+      name                    = string
+      description             = optional(string, "")
+      direction               = optional(string, "INGRESS")
+      priority                = optional(number, 1000)
+      source_ranges           = optional(list(string), [])
+      destination_ranges      = optional(list(string), [])
+      source_tags             = optional(list(string), [])
+      target_tags             = optional(list(string), [])
+      source_service_accounts = optional(list(string), [])
+      target_service_accounts = optional(list(string), [])
+      allow = optional(list(object({
+        protocol = string
+        ports    = optional(list(string), [])
+      })), [])
+      deny = optional(list(object({
+        protocol = string
+        ports    = optional(list(string), [])
+      })), [])
+    })), {})
   }))
 }
 

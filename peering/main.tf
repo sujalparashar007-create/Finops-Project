@@ -8,7 +8,7 @@ resource "google_compute_network_peering" "hub_to_spoke" {
 }
 
 resource "google_compute_network_peering" "spoke_to_hub" {
-  name         = "spoke-to-hub"
+  name         = "spoke-${var.env_name}-to-hub"
   network      = var.spoke_vpc_self_link
   peer_network = var.hub_vpc_self_link
 

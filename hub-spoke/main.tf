@@ -6,6 +6,7 @@
 #   2. One or more spoke VPCs                   (spoke module)
 #   3. Connectivity hub <-> spokes              (ncc or peering module)
 #   4. Firewall rules on the hub VPC            (firewall module)
+#   5. Firewall rules on each spoke VPC         (firewall module)
 #
 # Connectivity is selected via var.connectivity_type:
 #   - "ncc"     : Network Connectivity Center (full-mesh, for 2+ spokes)
@@ -93,4 +94,16 @@ module "firewall" {
   project_id    = var.hub_project_id
   vpc_self_link = module.hub.vpc_self_link
   rules         = var.firewall_rules
+}
+
+# ------------------------------------------------------------------------------
+# STEP 5: FIREWALL - rules applied to each spoke VPC
+# ------------------------------------------------------------------------------
+module "firewall_spoke" {
+  source   = "../firewall"
+  for_each = var.spokes
+
+  project_id    = each.value.project_id
+  vpc_self_link = module.spokes[each.key].vpc_self_link
+  rules         = each.value.firewall_rules
 }

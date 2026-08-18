@@ -66,11 +66,21 @@ output "peering_names" {
 # --- FIREWALL ---
 
 output "firewall_rule_ids" {
-  description = "Map of firewall rule key to firewall rule ID"
+  description = "Map of firewall rule key to firewall rule ID on the hub VPC"
   value       = module.firewall.rule_ids
 }
 
 output "firewall_rule_names" {
-  description = "Map of firewall rule key to firewall rule name"
+  description = "Map of firewall rule key to firewall rule name on the hub VPC"
   value       = module.firewall.rule_names
+}
+
+output "spoke_firewall_rule_ids" {
+  description = "Map of spoke name to map of firewall rule key to rule ID"
+  value       = { for k, v in module.firewall_spoke : k => v.rule_ids }
+}
+
+output "spoke_firewall_rule_names" {
+  description = "Map of spoke name to map of firewall rule key to rule name"
+  value       = { for k, v in module.firewall_spoke : k => v.rule_names }
 }

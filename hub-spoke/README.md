@@ -1,16 +1,17 @@
 # hub-spoke - Main Hub-and-Spoke Networking Module
 
-The main networking module for the project. Orchestrates the full hub-and-spoke topology: hub VPC, spoke VPCs, connectivity (NCC or VPC peering), and firewall rules.
+The main networking module for the project. Orchestrates the full hub-and-spoke topology: hub VPC, spoke VPCs, connectivity (NCC or VPC peering), and firewall rules on both hub and spoke VPCs.
 
 ## Architecture
 
 ```
 hub-spoke (orchestrator)
-Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ hub       Ã¢â€ â€™ hub VPC + subnet + Cloud Router
-Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ spokes    Ã¢â€ â€™ one or more spoke VPCs + subnets
-Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ ncc       Ã¢â€ â€™ Network Connectivity Center (full-mesh, 2+ spokes)
-Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ peering   Ã¢â€ â€™ classic VPC peering (per spoke pair)
-Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ firewall  Ã¢â€ â€™ firewall rules on the hub VPC
+├─ hub       → hub VPC + subnet + Cloud Router
+├─ spokes    → one or more spoke VPCs + subnets
+├─ ncc       → Network Connectivity Center (full-mesh, 2+ spokes)
+├─ peering   → classic VPC peering (per spoke pair)
+├─ firewall  → firewall rules on the hub VPC
+└─ firewall_spoke → firewall rules on each spoke VPC
 ```
 
 Choose connectivity via `connectivity_type`:
@@ -23,9 +24,9 @@ Choose connectivity via `connectivity_type`:
 module "hub_spoke" {
   source = "../hub-spoke"
 
-  hub_project_id = "foundation-network"
-  region         = "us-central1"
-  domain         = "prod"
+  hub_project_id    = "foundation-network"
+  region            = "us-central1"
+  domain            = "prod"
   connectivity_type = "peering"
 
   spokes = {
@@ -78,6 +79,7 @@ module "hub_spoke" {
 | svc_cidr | string | GKE services secondary CIDR (for gke/mixed) |
 | peering_export_custom_routes | bool | Peering custom route export (default false) |
 | peering_import_custom_routes | bool | Peering custom route import (default false) |
+| firewall_rules | map(object) | Firewall rules for this spoke VPC (default {}) |
 
 ## Outputs
 
@@ -94,5 +96,7 @@ module "hub_spoke" {
 | ncc_hub_id | NCC hub ID (empty when peering) |
 | ncc_spoke_ids | Map of spoke name to NCC spoke ID (empty when peering) |
 | peering_names | Map of spoke name to peering names (empty when ncc) |
-| firewall_rule_ids | Map of firewall rule key to ID |
-| firewall_rule_names | Map of firewall rule key to name |
+| firewall_rule_ids | Map of firewall rule key to ID on the hub VPC |
+| firewall_rule_names | Map of firewall rule key to name on the hub VPC |
+| spoke_firewall_rule_ids | Map of spoke name to map of firewall rule key to ID |
+| spoke_firewall_rule_names | Map of spoke name to map of firewall rule key to name |

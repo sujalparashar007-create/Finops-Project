@@ -49,7 +49,6 @@ resource "google_compute_shared_vpc_host_project" "spoke_host" {
 }
 
 resource "google_compute_shared_vpc_service_project" "spoke_service" {
-  count           = var.create_service_project ? 1 : 0
   host_project    = google_compute_shared_vpc_host_project.spoke_host.project
   service_project = var.service_project_id
 }
@@ -129,11 +128,6 @@ resource "google_compute_instance" "validation_hub" {
     enable-oslogin = "TRUE"
   }
 
-  service_account {
-    email  = "default"
-    scopes = ["cloud-platform"]
-  }
-
   shielded_instance_config {
     enable_secure_boot          = true
     enable_vtpm                 = true
@@ -172,11 +166,6 @@ resource "google_compute_instance" "validation_spoke" {
 
   metadata = {
     enable-oslogin = "TRUE"
-  }
-
-  service_account {
-    email  = "default"
-    scopes = ["cloud-platform"]
   }
 
   shielded_instance_config {

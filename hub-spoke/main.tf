@@ -60,12 +60,20 @@ module "connectivity_ncc" {
   hub_name       = "ncc-hub-${var.domain}"
   region         = var.region
 
-  vpc_spokes = {
-    for k, v in module.spokes : k => {
-      project_id    = var.spokes[k].project_id
-      vpc_self_link = v.vpc_self_link
+  vpc_spokes = merge(
+    {
+      for k, v in module.spokes : k => {
+        project_id    = var.spokes[k].project_id
+        vpc_self_link = v.vpc_self_link
+      }
+    },
+    {
+      hub = {
+        project_id    = var.hub_project_id
+        vpc_self_link = module.hub.vpc_self_link
+      }
     }
-  }
+  )
 
   labels = var.labels
 }

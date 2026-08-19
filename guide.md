@@ -1,53 +1,107 @@
-The previous task was stopped in the middle because the Cline usage limit was reached.
+We are working on the `test-iam` Terraform module.
 
-Do NOT restart the task from the beginning and do NOT assume which changes were completed.
+The YAML factories are almost complete, and `terraform apply` is almost working. Before considering this module finished, perform a thorough validation and make only the changes required to satisfy the following requirements.
 
-I will provide you with the exact file path(s) that you were modifying. First inspect the current state of those files and determine exactly what changes from the previous task have already been applied and what changes remain incomplete.
+IMPORTANT CONTEXT:
+- The intended architecture is YAML-driven.
+- The YAML factory files should be the source of configuration values.
+- We do NOT want Terraform configuration values to continue coming from `terraform.tfvars` / `terraform.tfvars.example` if they are no longer required.
+- Do not redesign the module unnecessarily.
+- First inspect the existing implementation and determine what is already working before modifying anything.
 
-The goal remains exactly the same:
+TASK 1 — VALIDATE YAML → Terraform CONNECTION
+------------------------------------------------
+Inspect the entire `test-iam` module and verify that the YAML factory files are correctly connected to the Terraform `.tf` files.
 
-1. Make hierarchical-iam.yaml, projects.yaml, and identities.yaml the actual YAML-driven configuration sources for the factory resources.
-2. Preserve the existing Terraform architecture and design.
-3. Do NOT modify iam/variables.tf.
-4. Do NOT add fake/example IAM users, groups, or domains.
-5. Keep finops-foundation-test as the factory project.
-6. Use finops-foundation as the factory folder.
-7. Use folder_name → module.factory_folders.folder_ids[...] so the project can reference the YAML-created folder in a single Terraform apply.
-8. Keep finops-workload-sa in myco-finops-dev-abc123 as previously verified.
-9. Do NOT change values merely by assumption.
-10. Do NOT run terraform apply.
+Check specifically:
+- Where each YAML file is loaded.
+- How `yamldecode()` / file reading is implemented.
+- Which locals/variables are created from the YAML content.
+- How those locals/decoded values flow into the actual Terraform resources/modules.
+- Whether any `.tf` file is still using hardcoded values or values coming from `terraform.tfvars` instead of the YAML factories.
+- Confirm that the values defined in YAML are the values Terraform will actually use during `plan/apply`.
 
-After inspecting the files, tell me:
-- what was already completed,
-- what is incomplete,
-- exactly where you will continue,
-- and what files/blocks still need to be changed.
+Do not assume the connection is correct just because the YAML files exist.
+Trace the complete data flow:
 
-Then continue ONLY from the point where the previous task stopped.
+YAML file
+→ Terraform file/local
+→ module input
+→ resource
+→ deployed value
 
-After all modifications are complete, run:
-- terraform fmt
-- terraform validate
-- terraform plan
+Fix any broken, commented-out, unused, or incorrectly wired YAML integration you find.
 
-Then STOP and show me the exact changes/diff and terraform plan summary.
+TASK 2 — VALIDATE WITH A FRESH PROJECT
+---------------------------------------
+The currently configured GCP project already exists, so it is not sufficient as the final deployment test.
 
-I will now provide the exact file path(s). Do not assume anything until you inspect them.
+Inspect the module and determine how it is intended to receive/create the target project.
 
+We need a fresh project for validation so that we can confirm the module works from a clean state.
 
-The file path is:
+Do the following:
+- Identify whether the module expects an existing project or creates the project itself.
+- Identify the exact project ID/value currently being used for testing.
+- Determine what configuration needs to be changed so we can test with a brand-new project.
+- Do not actually create an expensive or unnecessary GCP resource unless the existing module design requires it.
+- Prepare the configuration so a fresh-project deployment test can be performed safely.
 
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\main.tf
+If a new project must be created by Terraform, verify that the YAML-driven project definition correctly controls that creation.
 
-Inspect this file first and continue from the current state. Do not modify anything until you determine where the previous task stopped.
+If the module expects a pre-existing project, clearly identify that requirement and prepare the configuration for a new test project.
 
+TASK 3 — REMOVE UNNECESSARY TERRAFORM.TFVARS DEPENDENCY
+---------------------------------------------------------
+Inspect all references to:
+- terraform.tfvars
+- terraform.tfvars.example
+- variables.tf defaults
+- hardcoded values that were originally supplied through tfvars
 
+Determine which values are now already provided through the YAML factories.
 
+If `terraform.tfvars` is no longer required for normal deployment:
+- Remove the unnecessary dependency.
+- Remove/comment cleanup related to obsolete variables only where appropriate.
+- Update the module so YAML is the actual source of those values.
+- Do NOT remove variables that are still genuinely required for deployment.
 
-The files involved are:
+Do not simply delete `terraform.tfvars` without checking whether Terraform still depends on any of its values.
 
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\main.tf
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\hierarchical-iam.yaml
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\projects.yaml
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\identities.yaml
-C:\Users\user\Document\Repositories\Finops-Project\test-IAM\terraform.tfvars
+TASK 4 — TERRAFORM VALIDATION
+-----------------------------
+After making the required fixes, run or reason through the appropriate validation sequence:
+
+1. terraform init
+2. terraform validate
+3. terraform plan
+
+If safe and possible in the current environment, verify the apply path as well.
+
+The objective is to confirm:
+
+- YAML files are actually being consumed.
+- Terraform configuration is valid.
+- No required values are unexpectedly coming from terraform.tfvars.
+- The module is ready to be tested against a fresh project.
+- There are no obvious broken references, commented-out YAML wiring, or missing inputs.
+
+OUTPUT FORMAT
+-------------
+At the end, provide:
+
+1. Files inspected
+2. YAML factory → Terraform connection status
+3. Any incorrect/broken connections found
+4. Changes made
+5. Whether `terraform.tfvars` is still required
+6. Fresh-project testing requirements
+7. `terraform validate` result
+8. `terraform plan` result
+9. Remaining issues, if any
+
+IMPORTANT:
+Do not make speculative architectural changes.
+Do not rewrite working code unnecessarily.
+Focus on validating and fixing the existing YAML factory implementation so that the module is genuinely YAML-driven and ready for a clean deployment test.

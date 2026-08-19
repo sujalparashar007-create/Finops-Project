@@ -41,6 +41,7 @@
 | FinOps projects (+ project IAM) | From `projects.yaml` (was `project-factory`) |
 | FinOps service accounts (+ roles) | From `identities.yaml` (was `identities-factory`) |
 | FinOps folders + folder-level IAM | From `hierarchical-iam.yaml` (was `hierarchical-iam-factory`) |
+| Factory SA creation permission bootstrap | Grants `terraform_user` `roles/iam.serviceAccountAdmin` on each YAML-defined factory project so factory SAs can be created reliably |
 
 ## Factory configuration (YAML)
 

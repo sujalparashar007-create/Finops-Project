@@ -8,7 +8,7 @@
 # ==============================================================================
 
 projects:
-  finops-foundation-test:
+  finops-foundation-test-0001:
     folder_name: "finops-foundation"
     activate_apis:
       - cloudresourcemanager.googleapis.com

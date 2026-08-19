@@ -143,10 +143,24 @@ module "factory_project_iam" {
   depends_on = [module.factory_projects]
 }
 
+# Ensure the bootstrap operator can create factory service accounts in newly
+# created factory projects.
+resource "google_project_iam_member" "factory_operator_service_account_admin" {
+  for_each = local.factory_projects
+
+  project = module.factory_projects.project_ids[each.key]
+  role    = "roles/iam.serviceAccountAdmin"
+  member  = var.terraform_user
+
+  depends_on = [module.factory_projects]
+}
+
 # --- 6b. YAML-driven FinOps service accounts (was identities-factory) ---------
 module "factory_identities" {
   source           = "../identities"
   service_accounts = local.factory_identities
+
+  depends_on = [google_project_iam_member.factory_operator_service_account_admin]
 }
 
 # --- 6c. YAML-driven FinOps folders + folder IAM (was hierarchical-iam-factory)

@@ -1,15 +1,9 @@
 # ==============================================================================
-# EXAMPLE: projects module — basic variables
+# EXAMPLE: projects module — YAML-driven variables
 # ==============================================================================
 
 variable "billing_account_id" {
-  description = "GCP billing account ID"
+  description = "GCP billing account ID (format: XXXXXX-XXXXXX-XXXXXX)"
   type        = string
   default     = "01A325-032DBC-FAB4E4"
-}
-
-variable "folder_id" {
-  description = "GCP Folder ID to create the project in"
-  type        = string
-  default     = ""
 }

@@ -4,19 +4,8 @@
 # Run: cd examples/basic && terraform init && terraform apply
 # ==============================================================================
 
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 6.0"
-    }
-  }
-}
-
-provider "google" {
-  # Uses your gcloud ADC credentials.
-}
-
+# Provider and required_providers are declared in versions.tf to keep this
+# example DRY — main.tf only contains resource declarations.
 module "projects" {
   source = "../../"
 
@@ -34,7 +23,7 @@ module "projects" {
         environment = "prod"
         cost_center = "12345"
         app         = "ecommerce"
-        owner       = "john.doe"
+        owner       = "john-doe"
         location    = "us"
       }
     }

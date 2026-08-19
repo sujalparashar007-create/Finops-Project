@@ -7,15 +7,11 @@
 # — no Terraform code changes needed.
 # ==============================================================================
 
-service_accounts: {}
-# By default no FinOps service accounts are created during bootstrap. Replace
-# the commented example below with your real values to provision FinOps SAs
-# (and their project-level roles) as part of bootstrap. Re-run bootstrap after
-# editing — no Terraform code changes needed.
-# Example:
-#   example-sa:
-#     project_id: example-project
-#     display_name: "Example workload SA"
-#     roles:
-#       - roles/logging.logWriter
-#       - roles/secretmanager.secretAccessor
+service_accounts:
+  finops-workload-sa:
+    project_id: myco-finops-dev-abc123
+    display_name: "FinOps Workload Service Account"
+    roles:
+      - roles/logging.logWriter
+      - roles/monitoring.metricWriter
+

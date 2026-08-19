@@ -8,20 +8,9 @@
 # Terraform code changes needed.
 # ==============================================================================
 
-folders: {}
+folders:
+  finops-foundation:
+    parent: "organizations/563019909339"
+    tags: {}
+
 hierarchical_iam: {}
-# By default no FinOps folders are created during bootstrap. Populate the
-# commented example below with your real org-level folder data to provision
-# FinOps folders (and folder-level IAM) as part of bootstrap, then re-run.
-# Folder creation requires roles/resourcemanager.folderCreator on the org.
-# Example:
-# folders:
-#   Production:
-#     parent: "organizations/123456789012"
-#     tags: {}
-# hierarchical_iam:
-#   Production:
-#     bindings:
-#       prod_viewer:
-#         member: "group:gcp-prod-viewers@example.com"
-#         role: "roles/viewer"

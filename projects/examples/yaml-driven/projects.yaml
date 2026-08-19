@@ -1,0 +1,25 @@
+# ==============================================================================
+# YAML-driven projects configuration
+# ==============================================================================
+# Each entry under `projects:` defines one GCP project. The map key is the
+# project_id. Edit this file and re-run `terraform plan/apply` to make changes.
+#
+# Fields:
+#   folder_id      — (optional) numeric GCP folder ID; defaults to "" (org root)
+#   activate_apis  — (optional) list of GCP service APIs to enable
+#   labels         — (required) GCP project labels (all values must be strings)
+# ==============================================================================
+
+projects:
+ finops-finance-dev:
+    folder_id: ""
+    activate_apis:
+      - bigquery.googleapis.com
+      - storage.googleapis.com
+    labels:
+      team: finance
+      environment: dev
+      cost_center: "67890"
+      app: reporting
+      owner: jane-smith
+      location: us

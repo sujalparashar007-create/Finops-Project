@@ -7,27 +7,19 @@
 # bootstrap to change what gets created — no Terraform code changes needed.
 # ==============================================================================
 
-# By default no FinOps projects are created during bootstrap. Replace the
-# commented example below with your real values to provision FinOps projects
-# (and their project-level IAM) as part of bootstrap. Re-run bootstrap after
-# editing — no Terraform code changes needed.
-#
-# Example:
-# projects:
-#   finops-workload:
-#     folder_id: "123456789"
-#     activate_apis:
-#       - cloudfunctions.googleapis.com
-#     labels:
-#       team: finops
-#       environment: dev
-#       cost_center: "00000"
-#       app: finops-workload
-#       owner: finops-owner
-#       location: us
-#     iam_bindings_additive:
-#       viewer:
-#         member: "group:gcp-viewers@example.com"
-#         role: "roles/viewer"
+projects:
+  finops-foundation-test:
+    folder_name: "finops-foundation"
+    activate_apis:
+      - cloudresourcemanager.googleapis.com
+      - iam.googleapis.com
+      - serviceusage.googleapis.com
+      - cloudbilling.googleapis.com
+    labels:
+      team: finops
+      environment: dev
+      cost_center: "12345"
+      app: finops
+      owner: owner-finops
+      location: us
 
-projects: {}

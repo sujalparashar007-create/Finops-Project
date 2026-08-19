@@ -123,11 +123,13 @@ module "factory_projects" {
 
   projects = {
     for pid, p in local.factory_projects : pid => {
-      folder_id     = p.folder_id
+      folder_id     = try(module.factory_folders.folder_ids[p.folder_name], p.folder_id)
       activate_apis = try(p.activate_apis, [])
       labels        = p.labels
     }
   }
+
+  depends_on = [module.factory_folders]
 }
 
 module "factory_project_iam" {
